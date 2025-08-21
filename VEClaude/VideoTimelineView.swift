@@ -22,6 +22,8 @@ class VideoTimelineView: UIView {
     private var selectionOverlay: UIView!
     private var leftEar: UIView!
     private var rightEar: UIView!
+    private var leftClipMask: UIView!
+    private var rightClipMask: UIView!
     private var videos: [VideoSegment] = []
     private var selectedVideoIndex: Int? {
         didSet {
@@ -113,8 +115,13 @@ class VideoTimelineView: UIView {
         leftEar.layer.cornerRadius = 4
         leftEar.layer.maskedCorners = [.layerMinXMinYCorner, .layerMinXMaxYCorner] // Left top and bottom corners only
         leftEar.isHidden = true
+        leftEar.isUserInteractionEnabled = true
         leftEar.translatesAutoresizingMaskIntoConstraints = false
         scrollView.addSubview(leftEar)
+        
+        // Add pan gesture to left ear
+        let leftEarPanGesture = UIPanGestureRecognizer(target: self, action: #selector(leftEarPanned(_:)))
+        leftEar.addGestureRecognizer(leftEarPanGesture)
         
         // Right ear handle
         rightEar = UIView()
@@ -122,8 +129,29 @@ class VideoTimelineView: UIView {
         rightEar.layer.cornerRadius = 4
         rightEar.layer.maskedCorners = [.layerMaxXMinYCorner, .layerMaxXMaxYCorner] // Right top and bottom corners only
         rightEar.isHidden = true
+        rightEar.isUserInteractionEnabled = true
         rightEar.translatesAutoresizingMaskIntoConstraints = false
         scrollView.addSubview(rightEar)
+        
+        // Add pan gesture to right ear
+        let rightEarPanGesture = UIPanGestureRecognizer(target: self, action: #selector(rightEarPanned(_:)))
+        rightEar.addGestureRecognizer(rightEarPanGesture)
+        
+        // Left clipping mask (covers thumbnails that are clipped by left ear)
+        leftClipMask = UIView()
+        leftClipMask.backgroundColor = UIColor.black.withAlphaComponent(0.6)
+        leftClipMask.isHidden = true
+        leftClipMask.isUserInteractionEnabled = false // Allow touches to pass through
+        leftClipMask.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(leftClipMask)
+        
+        // Right clipping mask (covers thumbnails that are clipped by right ear)
+        rightClipMask = UIView()
+        rightClipMask.backgroundColor = UIColor.black.withAlphaComponent(0.6)
+        rightClipMask.isHidden = true
+        rightClipMask.isUserInteractionEnabled = false // Allow touches to pass through
+        rightClipMask.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(rightClipMask)
         
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: topAnchor, constant: 4),
@@ -220,6 +248,8 @@ class VideoTimelineView: UIView {
             selectionOverlay.isHidden = true
             leftEar.isHidden = true
             rightEar.isHidden = true
+            leftClipMask.isHidden = true
+            rightClipMask.isHidden = true
             return
         }
         
@@ -269,12 +299,62 @@ class VideoTimelineView: UIView {
             leftEar.isHidden = false
             rightEar.isHidden = false
             
+            // Bring ears to front to ensure they stay above clipping masks
+            scrollView.bringSubviewToFront(leftEar)
+            scrollView.bringSubviewToFront(rightEar)
+            
+            // Initially no clipping masks needed
+            leftClipMask.isHidden = true
+            rightClipMask.isHidden = true
+            
             print("Selection overlay: x=\(startX), width=\(totalWidth), thumbnails=\(thumbnailCount)")
             print("Left ear at x=\(startX - 20), Right ear at x=\(endX)")
         } else {
             selectionOverlay.isHidden = true
             leftEar.isHidden = true
             rightEar.isHidden = true
+            leftClipMask.isHidden = true
+            rightClipMask.isHidden = true
+        }
+    }
+    
+    private func updateClippingMasks() {
+        guard let selectedIndex = selectedVideoIndex,
+              selectedIndex < videos.count else { return }
+        
+        let selectedVideo = videos[selectedIndex]
+        let videoStartX = CGFloat(selectedVideo.startIndex * 60)
+        let videoEndX = videoStartX + CGFloat(selectedVideo.thumbnailViews.count * 60)
+        
+        let leftEarEndX = leftEar.frame.origin.x + 20 // End of left ear
+        let rightEarStartX = rightEar.frame.origin.x // Start of right ear
+        
+        // Left clipping mask: covers area from video start to left ear end
+        if leftEarEndX > videoStartX {
+            leftClipMask.frame = CGRect(
+                x: videoStartX,
+                y: 22, // Same y position as thumbnails
+                width: leftEarEndX - videoStartX,
+                height: stackView.frame.height
+            )
+            leftClipMask.isHidden = false
+            print("Left clip mask: x=\(videoStartX), width=\(leftEarEndX - videoStartX)")
+        } else {
+            leftClipMask.isHidden = true
+        }
+        
+        // Right clipping mask: covers area from right ear start to video end
+        if rightEarStartX < videoEndX {
+            rightClipMask.frame = CGRect(
+                x: rightEarStartX,
+                y: 22, // Same y position as thumbnails
+                width: videoEndX - rightEarStartX,
+                height: stackView.frame.height
+            )
+            rightClipMask.isHidden = false
+            print("Right clip mask: x=\(rightEarStartX), width=\(videoEndX - rightEarStartX)")
+        } else {
+            rightClipMask.isHidden = true
         }
     }
     
@@ -429,5 +509,117 @@ class VideoTimelineView: UIView {
         playIcon.draw(in: textRect, withAttributes: attributes)
         
         return UIGraphicsGetImageFromCurrentImageContext() ?? UIImage()
+    }
+    
+    // MARK: - Ear Pan Gesture Handlers
+    
+    @objc private func leftEarPanned(_ gesture: UIPanGestureRecognizer) {
+        guard let selectedIndex = selectedVideoIndex,
+              selectedIndex < videos.count else { return }
+        
+        let translation = gesture.translation(in: scrollView)
+        let selectedVideo = videos[selectedIndex]
+        
+        switch gesture.state {
+        case .changed:
+            // Calculate new position for left ear
+            let currentX = leftEar.frame.origin.x
+            let newX = currentX + translation.x
+            
+            // Calculate boundaries
+            let videoStartX = CGFloat(selectedVideo.startIndex * 60)
+            let videoEndX = videoStartX + CGFloat(selectedVideo.thumbnailViews.count * 60)
+            let rightEarX = rightEar.frame.origin.x
+            
+            // Left ear constraints:
+            // - Cannot go left of video start
+            // - Cannot go right of right ear position
+            let minX = videoStartX - 20 // Original left ear position
+            let maxX = rightEarX - 20 // At least 20px from right ear
+            
+            let clampedX = max(minX, min(newX, maxX))
+            
+            // Update left ear position
+            leftEar.frame.origin.x = clampedX
+            
+            // Update selection overlay to start from new left ear position
+            let newSelectionStartX = clampedX + 20 // 20px ear width
+            let newSelectionWidth = rightEar.frame.origin.x - newSelectionStartX
+            
+            selectionOverlay.frame = CGRect(
+                x: newSelectionStartX,
+                y: selectionOverlay.frame.origin.y,
+                width: newSelectionWidth,
+                height: selectionOverlay.frame.height
+            )
+            
+            gesture.setTranslation(.zero, in: scrollView)
+            
+            // Update clipping masks to show visual feedback
+            updateClippingMasks()
+            
+            print("Left ear panned to x: \(clampedX), selection starts at: \(newSelectionStartX)")
+            
+        case .ended:
+            print("Left ear pan ended")
+            
+        default:
+            break
+        }
+    }
+    
+    @objc private func rightEarPanned(_ gesture: UIPanGestureRecognizer) {
+        guard let selectedIndex = selectedVideoIndex,
+              selectedIndex < videos.count else { return }
+        
+        let translation = gesture.translation(in: scrollView)
+        let selectedVideo = videos[selectedIndex]
+        
+        switch gesture.state {
+        case .changed:
+            // Calculate new position for right ear
+            let currentX = rightEar.frame.origin.x
+            let newX = currentX + translation.x
+            
+            // Calculate boundaries
+            let videoStartX = CGFloat(selectedVideo.startIndex * 60)
+            let videoEndX = videoStartX + CGFloat(selectedVideo.thumbnailViews.count * 60)
+            let leftEarX = leftEar.frame.origin.x
+            
+            // Right ear constraints:
+            // - Cannot go right of video end
+            // - Cannot go left of left ear position
+            let minX = leftEarX + 40 // At least 20px from left ear (20px ear + 20px gap)
+            let maxX = videoEndX // Original right ear position
+            
+            let clampedX = max(minX, min(newX, maxX))
+            
+            // Update right ear position
+            rightEar.frame.origin.x = clampedX
+            
+            // Update selection overlay to end at new right ear position
+            let leftEarEndX = leftEar.frame.origin.x + 20 // Left ear end position
+            let newSelectionWidth = clampedX - leftEarEndX
+            
+            selectionOverlay.frame = CGRect(
+                x: selectionOverlay.frame.origin.x,
+                y: selectionOverlay.frame.origin.y,
+                width: newSelectionWidth,
+                height: selectionOverlay.frame.height
+            )
+            
+            gesture.setTranslation(.zero, in: scrollView)
+            
+            // Update clipping masks to show visual feedback
+            updateClippingMasks()
+            
+            print("Right ear panned to x: \(clampedX), selection width: \(newSelectionWidth)")
+            
+        case .ended:
+            print("Right ear pan ended")
+            
+        default:
+            break
+        }
     }
 }
