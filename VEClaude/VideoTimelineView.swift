@@ -181,21 +181,42 @@ class VideoTimelineView: UIView {
     }
     
     @objc private func thumbnailTapped(_ gesture: UITapGestureRecognizer) {
-        guard let tappedImageView = gesture.view as? UIImageView else { return }
+        guard let tappedImageView = gesture.view as? UIImageView else { 
+            print("Tap gesture view is not UIImageView")
+            return 
+        }
+        
+        print("Thumbnail tapped, current selectedVideoIndex: \(selectedVideoIndex?.description ?? "nil")")
         
         // Find which video this thumbnail belongs to
         for (videoIndex, video) in videos.enumerated() {
             if video.thumbnailViews.contains(tappedImageView) {
-                selectedVideoIndex = videoIndex
-                delegate?.videoTimelineView(self, didSelectVideoAt: videoIndex)
+                print("Found tapped thumbnail belongs to video at index: \(videoIndex)")
+                
+                // Toggle selection: if already selected, deselect; otherwise select
+                if selectedVideoIndex == videoIndex {
+                    // Deselect the video
+                    print("Video \(videoIndex) is already selected, deselecting...")
+                    selectedVideoIndex = nil
+                    print("Deselected video at index: \(videoIndex), selectedVideoIndex is now: \(selectedVideoIndex?.description ?? "nil")")
+                } else {
+                    // Select the video
+                    print("Selecting video at index: \(videoIndex)")
+                    selectedVideoIndex = videoIndex
+                    delegate?.videoTimelineView(self, didSelectVideoAt: videoIndex)
+                    print("Selected video at index: \(videoIndex)")
+                }
                 break
             }
         }
     }
     
     private func updateSelectionVisual() {
+        print("updateSelectionVisual called with selectedVideoIndex: \(selectedVideoIndex?.description ?? "nil")")
+        
         guard let selectedIndex = selectedVideoIndex,
               selectedIndex < videos.count else {
+            print("Hiding selection overlay and ears")
             selectionOverlay.isHidden = true
             leftEar.isHidden = true
             rightEar.isHidden = true
