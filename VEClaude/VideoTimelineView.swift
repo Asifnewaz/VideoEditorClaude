@@ -20,6 +20,8 @@ class VideoTimelineView: UIView {
     private var timeStackView: UIStackView!
     private var stackView: UIStackView!
     private var selectionOverlay: UIView!
+    private var leftEar: UIView!
+    private var rightEar: UIView!
     private var videos: [VideoSegment] = []
     private var selectedVideoIndex: Int? {
         didSet {
@@ -100,10 +102,28 @@ class VideoTimelineView: UIView {
         selectionOverlay.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.2)
         selectionOverlay.layer.borderColor = UIColor.systemBlue.cgColor
         selectionOverlay.layer.borderWidth = 2
-        selectionOverlay.layer.cornerRadius = 4
+        selectionOverlay.layer.cornerRadius = 0
         selectionOverlay.isHidden = true
         selectionOverlay.translatesAutoresizingMaskIntoConstraints = false
         scrollView.addSubview(selectionOverlay)
+        
+        // Left ear handle
+        leftEar = UIView()
+        leftEar.backgroundColor = UIColor.systemBlue
+        leftEar.layer.cornerRadius = 4
+        leftEar.layer.maskedCorners = [.layerMinXMinYCorner, .layerMinXMaxYCorner] // Left top and bottom corners only
+        leftEar.isHidden = true
+        leftEar.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(leftEar)
+        
+        // Right ear handle
+        rightEar = UIView()
+        rightEar.backgroundColor = UIColor.systemBlue
+        rightEar.layer.cornerRadius = 4
+        rightEar.layer.maskedCorners = [.layerMaxXMinYCorner, .layerMaxXMaxYCorner] // Right top and bottom corners only
+        rightEar.isHidden = true
+        rightEar.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(rightEar)
         
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: topAnchor, constant: 4),
@@ -177,6 +197,8 @@ class VideoTimelineView: UIView {
         guard let selectedIndex = selectedVideoIndex,
               selectedIndex < videos.count else {
             selectionOverlay.isHidden = true
+            leftEar.isHidden = true
+            rightEar.isHidden = true
             return
         }
         
@@ -196,6 +218,7 @@ class VideoTimelineView: UIView {
             
             // Get start position from first thumbnail
             let startX = CGFloat(selectedVideo.startIndex * 60)
+            let endX = startX + totalWidth
             
             // Update overlay frame (position relative to thumbnail stack view)
             selectionOverlay.frame = CGRect(
@@ -205,11 +228,32 @@ class VideoTimelineView: UIView {
                 height: stackView.frame.height
             )
             
+            // Position left ear (20px wide, attached to left side of video)
+            leftEar.frame = CGRect(
+                x: startX - 20, // Position 20px to the left of video start
+                y: 22, // Same y position as selection overlay
+                width: 20,
+                height: stackView.frame.height
+            )
+            
+            // Position right ear (20px wide, attached to right side of video)
+            rightEar.frame = CGRect(
+                x: endX, // Position right after video end
+                y: 22, // Same y position as selection overlay
+                width: 20,
+                height: stackView.frame.height
+            )
+            
             selectionOverlay.isHidden = false
+            leftEar.isHidden = false
+            rightEar.isHidden = false
             
             print("Selection overlay: x=\(startX), width=\(totalWidth), thumbnails=\(thumbnailCount)")
+            print("Left ear at x=\(startX - 20), Right ear at x=\(endX)")
         } else {
             selectionOverlay.isHidden = true
+            leftEar.isHidden = true
+            rightEar.isHidden = true
         }
     }
     
@@ -270,7 +314,7 @@ class VideoTimelineView: UIView {
         let imageView = UIImageView(image: image)
         imageView.contentMode = .scaleAspectFill
         imageView.clipsToBounds = true
-        imageView.layer.cornerRadius = 2
+        imageView.layer.cornerRadius = 0
         imageView.backgroundColor = .systemGray5
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.isUserInteractionEnabled = true
