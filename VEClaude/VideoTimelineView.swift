@@ -114,6 +114,7 @@ class VideoSelectionView: UIView {
     private func setupSelectionView() {
         backgroundColor = .clear
         isHidden = true
+        isUserInteractionEnabled = true // Ensure selection view can receive touches
         
         // Selection overlay
         selectionOverlay = UIView()
@@ -121,6 +122,7 @@ class VideoSelectionView: UIView {
         selectionOverlay.layer.borderColor = UIColor.systemBlue.cgColor
         selectionOverlay.layer.borderWidth = 2
         selectionOverlay.layer.cornerRadius = 0
+        selectionOverlay.isUserInteractionEnabled = false // Overlay should not block touches to ears
         selectionOverlay.translatesAutoresizingMaskIntoConstraints = false
         addSubview(selectionOverlay)
         
@@ -183,6 +185,7 @@ class VideoSelectionView: UIView {
     }
     
     @objc private func leftEarPanned(_ gesture: UIPanGestureRecognizer) {
+        print("🔵 Left ear pan gesture triggered - state: \(gesture.state.rawValue)")
         delegate?.handleLeftEarPan(gesture, selectionView: self)
     }
     
@@ -207,6 +210,9 @@ class VideoTimelineView: UIView {
             updateSelectionVisual()
         }
     }
+    
+    // Track accumulated left trim offset for smooth slow panning
+    private var accumulatedLeftTrimOffset: CGFloat = 0
     
     weak var delegate: VideoTimelineViewDelegate?
     
@@ -446,6 +452,9 @@ class VideoTimelineView: UIView {
             
             selectionView.updateSelection(frame: selectionFrame)
             
+            // Ensure selection view is on top for touch handling
+            scrollView.bringSubviewToFront(selectionView)
+            
             print("Selection view: x=\(currentContainerFrame.origin.x - 20), width=\(currentContainerFrame.width + 40)")
             print("Container: x=\(currentContainerFrame.origin.x), width=\(currentContainerFrame.width)")
         } else {
@@ -548,9 +557,13 @@ class VideoTimelineView: UIView {
     
     // MARK: - Pan Gesture Handlers
     func handleLeftEarPan(_ gesture: UIPanGestureRecognizer, selectionView: VideoSelectionView) {
+        print("🟡 handleLeftEarPan called - gesture state: \(gesture.state.rawValue)")
         guard let selectedIndex = selectedVideoIndex,
               selectedIndex < videos.count,
-              selectedIndex < videoContainers.count else { return }
+              selectedIndex < videoContainers.count else { 
+            print("🔴 handleLeftEarPan - invalid selectedIndex: \(selectedVideoIndex?.description ?? "nil")")
+            return 
+        }
         
         let translation = gesture.translation(in: scrollView)
         let selectedContainer = videoContainers[selectedIndex]
@@ -560,55 +573,82 @@ class VideoTimelineView: UIView {
         let originalWidth = selectedVideoSegment.originalWidth
         let originalStartPosition = selectedVideoSegment.originalStartPosition
         
+        print("🟡 Left ear pan - translation: \(translation), originalWidth: \(originalWidth)")
+        
         switch gesture.state {
+        case .began:
+            // Reset accumulated offset at the start of a new gesture
+            accumulatedLeftTrimOffset = selectedVideoSegment.leftCropAmount
+            
         case .changed:
-            let newLeftEarX = selectionView.frame.origin.x + translation.x
+            print("🟢 Left ear pan - CHANGED state, translation: \(translation)")
             
-            // Constrain left ear movement based on original video position
-            let minX = originalStartPosition - 20 // Original left ear position
-            let maxX = selectionView.frame.origin.x + selectionView.frame.width - 40 // Minimum content width
-            let clampedX = max(minX, min(newLeftEarX, maxX))
+            // 1. LEFT EAR POSITION STAYS FIXED - no clampedX calculation or selection view position change
+            // Left ear remains at its current position: selectionView.frame.origin.x
             
-            // Calculate how much to clip from the left relative to original position
-            let clipStartX = max(0, clampedX + 20 - originalStartPosition)
+            // 2. Accumulate the translation over time for smooth slow panning
+            // For left ear: drag RIGHT (positive translation) = trim from left (move thumbs to negative X)
+            accumulatedLeftTrimOffset += translation.x // Accumulate positive translation as positive trim amount
             
-            // Update selection view position
-            let newWidth = selectionView.frame.width - (clampedX - selectionView.frame.origin.x)
-            let newSelectionFrame = CGRect(x: clampedX, y: selectionView.frame.origin.y, width: newWidth, height: selectionView.frame.height)
+            print("🟢 Accumulated left trim offset: \(accumulatedLeftTrimOffset)")
+            
+            // Constraint the accumulated offset within valid bounds
+            let maxLeftTrimOffset: CGFloat = originalWidth - 60.0 // Can't hide more than (originalWidth - 60px minimum)
+            let minLeftTrimOffset: CGFloat = 0 // Can't expand beyond original
+            let constrainedLeftTrimOffset = max(minLeftTrimOffset, min(maxLeftTrimOffset, accumulatedLeftTrimOffset))
+            
+            // Convert trim amount to negative thumbs offset (trim from left = negative X movement)
+            let constrainedThumbsOffset = -constrainedLeftTrimOffset
+            
+            print("🟢 Constrained left trim offset: \(constrainedLeftTrimOffset), thumbs offset: \(constrainedThumbsOffset)")
+            
+            // 3. Update container width: shrinks as content is trimmed from left
+            let newContainerWidth = originalWidth - constrainedLeftTrimOffset // Shrinks as trim amount increases
+            let constrainedContainerWidth = max(60.0, newContainerWidth) // Minimum 60px (1 second)
+            
+            print("🟢 New container width: \(constrainedContainerWidth)")
+            
+            // 4. Update selection view width to match new container width + ears
+            let newSelectionWidth = constrainedContainerWidth + 40.0 // 20px ears on each side
+            let newSelectionFrame = CGRect(
+                x: selectionView.frame.origin.x, // LEFT EAR POSITION STAYS FIXED
+                y: selectionView.frame.origin.y,
+                width: newSelectionWidth,
+                height: selectionView.frame.height
+            )
             selectionView.updateFrame(newSelectionFrame)
             
             // Update crop amount in data model
-            let currentRightEarStartX = selectionView.frame.origin.x + newWidth - 20
-            let rightCropFromOriginal = max(0, originalStartPosition + originalWidth - currentRightEarStartX)
+            selectedVideoSegment.leftCropAmount = constrainedLeftTrimOffset
+            selectedVideoSegment.rightCropAmount = 0 // No right cropping in left ear pan
             
-            selectedVideoSegment.leftCropAmount = clipStartX
-            selectedVideoSegment.rightCropAmount = rightCropFromOriginal
-            
-            
-            // Update container frame: move start position and reduce width
-            // Content view inside stays at original size and position, creating clipping effect
+            // Update container frame: width shrinks, position stays the same
             selectedContainer.frame = CGRect(
-                x: originalStartPosition + clipStartX,
+                x: originalStartPosition, // Keep original container position
                 y: selectedContainer.frame.origin.y,
-                width: originalWidth - clipStartX - rightCropFromOriginal,
+                width: constrainedContainerWidth, // Container width shrinks
                 height: selectedContainer.frame.height
             )
             
-            // Move content view to compensate for container position change
-            // This keeps thumbnails in their original absolute positions
+            // 2. THUMBS MOVE TO NEGATIVE X - content view moves left (negative X)
             let contentView = selectedContainer.getContentView()
-            contentView.frame = CGRect(
-                x: -clipStartX,  // Negative offset to compensate for container movement
+            let newContentFrame = CGRect(
+                x: constrainedThumbsOffset, // Thumbs move to negative side with panning
                 y: 0,
-                width: originalWidth,  // Keep original content width
+                width: originalWidth, // Keep original content width
                 height: selectedContainer.frame.height
             )
+            contentView.frame = newContentFrame
+            
+            print("🟢 Content view frame updated: x=\(constrainedThumbsOffset), width=\(originalWidth)")
+            print("🟢 Container frame: x=\(selectedContainer.frame.origin.x), width=\(selectedContainer.frame.width)")
+            print("🟢 Selection view frame: x=\(selectionView.frame.origin.x), width=\(selectionView.frame.width)")
             
             gesture.setTranslation(.zero, in: scrollView)
             
             // Update time labels and reposition subsequent videos
             updateTimeLabelsForTrimming()
-            repositionVideoContainersAfterTrimming(selectedIndex: selectedIndex)
+           // repositionVideoContainersAfterTrimming(selectedIndex: selectedIndex)
             
         case .ended:
             updateEffectiveContentSize()
