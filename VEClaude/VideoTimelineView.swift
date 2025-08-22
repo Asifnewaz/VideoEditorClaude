@@ -12,18 +12,195 @@ protocol VideoTimelineViewDelegate: AnyObject {
     func videoTimelineView(_ timelineView: VideoTimelineView, didSelectVideoAt index: Int)
 }
 
+// MARK: - Video Thumbnail Container
+class VideoThumbnailContainer: UIView {
+    private var thumbnailViews: [UIImageView] = []
+    private var contentView: UIView!
+    private var stackView: UIStackView!
+    let videoIndex: Int
+    let videoURL: URL
+    
+    init(videoIndex: Int, videoURL: URL) {
+        self.videoIndex = videoIndex
+        self.videoURL = videoURL
+        super.init(frame: .zero)
+        setupContainer()
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    private func setupContainer() {
+        backgroundColor = .clear
+        clipsToBounds = true // Enable clipping for cropping effect
+        
+        // Create content view that will hold all thumbnails
+        contentView = UIView()
+        contentView.backgroundColor = .clear
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(contentView)
+        
+        // Content view fills the container initially, but won't be resized during clipping
+        NSLayoutConstraint.activate([
+            contentView.topAnchor.constraint(equalTo: topAnchor),
+            contentView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            contentView.bottomAnchor.constraint(equalTo: bottomAnchor)
+            // Note: No trailing constraint - width will be set programmatically
+        ])
+        
+        // Stack view for thumbnails goes inside content view
+        stackView = UIStackView()
+        stackView.axis = .horizontal
+        stackView.spacing = 0
+        stackView.distribution = .fill
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(stackView)
+        
+        NSLayoutConstraint.activate([
+            stackView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            stackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            stackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            stackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+        ])
+    }
+    
+    func addThumbnail(_ imageView: UIImageView) {
+        thumbnailViews.append(imageView)
+        stackView.addArrangedSubview(imageView)
+        
+        // Update content view width to fit all thumbnails
+        let totalWidth = CGFloat(thumbnailViews.count * 60)
+        let currentHeight = max(frame.height, 60) // Use 60px as minimum height
+        contentView.frame = CGRect(x: contentView.frame.origin.x, y: 0, width: totalWidth, height: currentHeight)
+    }
+    
+    func getThumbnailViews() -> [UIImageView] {
+        return thumbnailViews
+    }
+    
+    func getThumbnailCount() -> Int {
+        return thumbnailViews.count
+    }
+    
+    func getContentView() -> UIView {
+        return contentView
+    }
+    
+    func updateContentViewSize() {
+        let totalWidth = CGFloat(thumbnailViews.count * 60)
+        contentView.frame = CGRect(x: contentView.frame.origin.x, y: 0, width: totalWidth, height: frame.height)
+    }
+}
+
+// MARK: - Video Selection View
+class VideoSelectionView: UIView {
+    private var selectionOverlay: UIView!
+    private var leftEar: UIView!
+    private var rightEar: UIView!
+    
+    weak var delegate: VideoTimelineView?
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setupSelectionView()
+    }
+    
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setupSelectionView()
+    }
+    
+    private func setupSelectionView() {
+        backgroundColor = .clear
+        isHidden = true
+        
+        // Selection overlay
+        selectionOverlay = UIView()
+        selectionOverlay.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.2)
+        selectionOverlay.layer.borderColor = UIColor.systemBlue.cgColor
+        selectionOverlay.layer.borderWidth = 2
+        selectionOverlay.layer.cornerRadius = 0
+        selectionOverlay.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(selectionOverlay)
+        
+        // Left ear handle
+        leftEar = UIView()
+        leftEar.backgroundColor = UIColor.systemBlue
+        leftEar.layer.cornerRadius = 4
+        leftEar.layer.maskedCorners = [.layerMinXMinYCorner, .layerMinXMaxYCorner]
+        leftEar.isUserInteractionEnabled = true
+        leftEar.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(leftEar)
+        
+        // Right ear handle
+        rightEar = UIView()
+        rightEar.backgroundColor = UIColor.systemBlue
+        rightEar.layer.cornerRadius = 4
+        rightEar.layer.maskedCorners = [.layerMaxXMinYCorner, .layerMaxXMaxYCorner]
+        rightEar.isUserInteractionEnabled = true
+        rightEar.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(rightEar)
+        
+        // Add pan gestures
+        let leftEarPanGesture = UIPanGestureRecognizer(target: self, action: #selector(leftEarPanned(_:)))
+        leftEar.addGestureRecognizer(leftEarPanGesture)
+        
+        let rightEarPanGesture = UIPanGestureRecognizer(target: self, action: #selector(rightEarPanned(_:)))
+        rightEar.addGestureRecognizer(rightEarPanGesture)
+    }
+    
+    func updateSelection(frame: CGRect) {
+        self.frame = frame
+        updateInternalLayout()
+        isHidden = false
+    }
+    
+    private func updateInternalLayout() {
+        // Position selection overlay to fill the frame
+        selectionOverlay.frame = CGRect(x: 20, y: 0, width: frame.width - 40, height: frame.height)
+        
+        // Position ears
+        leftEar.frame = CGRect(x: 0, y: 0, width: 20, height: frame.height)
+        rightEar.frame = CGRect(x: frame.width - 20, y: 0, width: 20, height: frame.height)
+    }
+    
+    func updateFrame(_ newFrame: CGRect) {
+        self.frame = newFrame
+        updateInternalLayout()
+    }
+    
+    func hideSelection() {
+        isHidden = true
+    }
+    
+    func getLeftEarPosition() -> CGFloat {
+        return frame.origin.x + leftEar.frame.origin.x + leftEar.frame.width
+    }
+    
+    func getRightEarPosition() -> CGFloat {
+        return frame.origin.x + rightEar.frame.origin.x
+    }
+    
+    @objc private func leftEarPanned(_ gesture: UIPanGestureRecognizer) {
+        delegate?.handleLeftEarPan(gesture, selectionView: self)
+    }
+    
+    @objc private func rightEarPanned(_ gesture: UIPanGestureRecognizer) {
+        delegate?.handleRightEarPan(gesture, selectionView: self)
+    }
+}
+
 class VideoTimelineView: UIView {
     
     // MARK: - Properties
     private var scrollView: UIScrollView!
     private var timeContainer: UIView!
-    private var timeStackView: UIStackView!
-    private var stackView: UIStackView!
-    private var selectionOverlay: UIView!
-    private var leftEar: UIView!
-    private var rightEar: UIView!
-    private var leftClipMask: UIView!
-    private var rightClipMask: UIView!
+    private var thumbnailContainer: UIView!
+    private var videoContainers: [VideoThumbnailContainer] = []
+    private var selectionView: VideoSelectionView!
+    private var stackViewWidthConstraint: NSLayoutConstraint!
+    private var timeContainerWidthConstraint: NSLayoutConstraint!
     private var videos: [VideoSegment] = []
     private var selectedVideoIndex: Int? {
         didSet {
@@ -53,8 +230,41 @@ class VideoTimelineView: UIView {
         var endIndex: Int = 0
         var isSelected: Bool = false
         
+        // Original video properties (never change)
+        var originalThumbnailCount: Int = 0
+        var originalWidth: CGFloat = 0
+        var originalStartPosition: CGFloat = 0
+        
+        // Current cropping state
+        var leftCropAmount: CGFloat = 0  // How much cropped from left
+        var rightCropAmount: CGFloat = 0 // How much cropped from right
+        
         init(url: URL) {
             self.url = url
+        }
+        
+        func setOriginalDimensions(thumbnailCount: Int, startPosition: CGFloat) {
+            self.originalThumbnailCount = thumbnailCount
+            self.originalWidth = CGFloat(thumbnailCount * 60)
+            self.originalStartPosition = startPosition
+            print("SetOriginalDimensions - thumbnailCount: \(thumbnailCount), originalWidth: \(originalWidth), startPosition: \(startPosition)")
+        }
+        
+        func getCurrentWidth() -> CGFloat {
+            return originalWidth - leftCropAmount - rightCropAmount
+        }
+        
+        func getCurrentStartPosition() -> CGFloat {
+            return originalStartPosition + leftCropAmount
+        }
+        
+        
+        func getMaxLeftCrop() -> CGFloat {
+            return originalWidth - 60 // Leave at least 1 thumbnail (60px)
+        }
+        
+        func getMaxRightCrop() -> CGFloat {
+            return originalWidth - 60 // Leave at least 1 thumbnail (60px)
         }
     }
     
@@ -88,70 +298,17 @@ class VideoTimelineView: UIView {
         timeContainer.translatesAutoresizingMaskIntoConstraints = false
         scrollView.addSubview(timeContainer)
         
-        // Time labels will be positioned absolutely within timeContainer
-        // No need for stack view since we're positioning at specific locations
+        // Thumbnail container (below time container) - holds all video containers
+        thumbnailContainer = UIView()
+        thumbnailContainer.backgroundColor = .clear
+        thumbnailContainer.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(thumbnailContainer)
         
-        // Thumbnail stack view (below time container)
-        stackView = UIStackView()
-        stackView.axis = .horizontal
-        stackView.spacing = 0
-        stackView.distribution = .fill
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.addSubview(stackView)
-        
-        // Selection overlay
-        selectionOverlay = UIView()
-        selectionOverlay.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.2)
-        selectionOverlay.layer.borderColor = UIColor.systemBlue.cgColor
-        selectionOverlay.layer.borderWidth = 2
-        selectionOverlay.layer.cornerRadius = 0
-        selectionOverlay.isHidden = true
-        selectionOverlay.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.addSubview(selectionOverlay)
-        
-        // Left ear handle
-        leftEar = UIView()
-        leftEar.backgroundColor = UIColor.systemBlue
-        leftEar.layer.cornerRadius = 4
-        leftEar.layer.maskedCorners = [.layerMinXMinYCorner, .layerMinXMaxYCorner] // Left top and bottom corners only
-        leftEar.isHidden = true
-        leftEar.isUserInteractionEnabled = true
-        leftEar.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.addSubview(leftEar)
-        
-        // Add pan gesture to left ear
-        let leftEarPanGesture = UIPanGestureRecognizer(target: self, action: #selector(leftEarPanned(_:)))
-        leftEar.addGestureRecognizer(leftEarPanGesture)
-        
-        // Right ear handle
-        rightEar = UIView()
-        rightEar.backgroundColor = UIColor.systemBlue
-        rightEar.layer.cornerRadius = 4
-        rightEar.layer.maskedCorners = [.layerMaxXMinYCorner, .layerMaxXMaxYCorner] // Right top and bottom corners only
-        rightEar.isHidden = true
-        rightEar.isUserInteractionEnabled = true
-        rightEar.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.addSubview(rightEar)
-        
-        // Add pan gesture to right ear
-        let rightEarPanGesture = UIPanGestureRecognizer(target: self, action: #selector(rightEarPanned(_:)))
-        rightEar.addGestureRecognizer(rightEarPanGesture)
-        
-        // Left clipping mask (covers thumbnails that are clipped by left ear)
-        leftClipMask = UIView()
-        leftClipMask.backgroundColor = UIColor.black.withAlphaComponent(0.6)
-        leftClipMask.isHidden = true
-        leftClipMask.isUserInteractionEnabled = false // Allow touches to pass through
-        leftClipMask.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.addSubview(leftClipMask)
-        
-        // Right clipping mask (covers thumbnails that are clipped by right ear)
-        rightClipMask = UIView()
-        rightClipMask.backgroundColor = UIColor.black.withAlphaComponent(0.6)
-        rightClipMask.isHidden = true
-        rightClipMask.isUserInteractionEnabled = false // Allow touches to pass through
-        rightClipMask.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.addSubview(rightClipMask)
+        // Selection view (overlay with ears)
+        selectionView = VideoSelectionView()
+        selectionView.delegate = self
+        selectionView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(selectionView)
         
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: topAnchor, constant: 4),
@@ -162,17 +319,21 @@ class VideoTimelineView: UIView {
             // Time container constraints (top area)
             timeContainer.topAnchor.constraint(equalTo: scrollView.topAnchor),
             timeContainer.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
-            timeContainer.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
             timeContainer.heightAnchor.constraint(equalToConstant: 20),
             
-            
-            // Thumbnail stack view constraints (below time container)
-            stackView.topAnchor.constraint(equalTo: timeContainer.bottomAnchor, constant: 2),
-            stackView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
-            stackView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
-            stackView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
-            stackView.heightAnchor.constraint(equalTo: scrollView.heightAnchor, constant: -22)
+            // Thumbnail container constraints (below time container)
+            thumbnailContainer.topAnchor.constraint(equalTo: timeContainer.bottomAnchor, constant: 2),
+            thumbnailContainer.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
+            thumbnailContainer.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
+            thumbnailContainer.heightAnchor.constraint(equalTo: scrollView.heightAnchor, constant: -22)
         ])
+        
+        // Initialize width constraints with minimum width
+        timeContainerWidthConstraint = timeContainer.widthAnchor.constraint(equalToConstant: 0)
+        stackViewWidthConstraint = thumbnailContainer.widthAnchor.constraint(equalToConstant: 0)
+        
+        timeContainerWidthConstraint.isActive = true
+        stackViewWidthConstraint.isActive = true
     }
     
     private func updateHeight() {
@@ -187,9 +348,16 @@ class VideoTimelineView: UIView {
     func addVideo(from url: URL) {
         let videoSegment = VideoSegment(url: url)
         
-        // Calculate start index for this video (after all existing thumbnails)
-        let currentThumbnailCount = stackView.arrangedSubviews.count
+        // Calculate start index for this video (after all existing video containers)
+        var currentThumbnailCount = 0
+        for container in videoContainers {
+            currentThumbnailCount += container.getThumbnailCount()
+        }
         videoSegment.startIndex = currentThumbnailCount
+        
+        // Create video container
+        let videoContainer = VideoThumbnailContainer(videoIndex: videos.count, videoURL: url)
+        videoContainers.append(videoContainer)
         
         videos.append(videoSegment)
         generateThumbnails(for: videos.count - 1)
@@ -197,9 +365,11 @@ class VideoTimelineView: UIView {
     
     func clearAllVideos() {
         videos.removeAll()
-        stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        videoContainers.forEach { $0.removeFromSuperview() }
+        videoContainers.removeAll()
         timeContainer.subviews.forEach { $0.removeFromSuperview() }
         selectedVideoIndex = nil
+        updateScrollViewContentSize()
     }
     
     private func reloadAllVideos() {
@@ -216,23 +386,23 @@ class VideoTimelineView: UIView {
         
         print("Thumbnail tapped, current selectedVideoIndex: \(selectedVideoIndex?.description ?? "nil")")
         
-        // Find which video this thumbnail belongs to
-        for (videoIndex, video) in videos.enumerated() {
-            if video.thumbnailViews.contains(tappedImageView) {
-                print("Found tapped thumbnail belongs to video at index: \(videoIndex)")
+        // Find which video container this thumbnail belongs to
+        for (containerIndex, container) in videoContainers.enumerated() {
+            if container.getThumbnailViews().contains(tappedImageView) {
+                print("Found tapped thumbnail belongs to video at index: \(containerIndex)")
                 
                 // Toggle selection: if already selected, deselect; otherwise select
-                if selectedVideoIndex == videoIndex {
+                if selectedVideoIndex == containerIndex {
                     // Deselect the video
-                    print("Video \(videoIndex) is already selected, deselecting...")
+                    print("Video \(containerIndex) is already selected, deselecting...")
                     selectedVideoIndex = nil
-                    print("Deselected video at index: \(videoIndex), selectedVideoIndex is now: \(selectedVideoIndex?.description ?? "nil")")
+                    print("Deselected video at index: \(containerIndex), selectedVideoIndex is now: \(selectedVideoIndex?.description ?? "nil")")
                 } else {
                     // Select the video
-                    print("Selecting video at index: \(videoIndex)")
-                    selectedVideoIndex = videoIndex
-                    delegate?.videoTimelineView(self, didSelectVideoAt: videoIndex)
-                    print("Selected video at index: \(videoIndex)")
+                    print("Selecting video at index: \(containerIndex)")
+                    selectedVideoIndex = containerIndex
+                    delegate?.videoTimelineView(self, didSelectVideoAt: containerIndex)
+                    print("Selected video at index: \(containerIndex)")
                 }
                 break
             }
@@ -243,118 +413,341 @@ class VideoTimelineView: UIView {
         print("updateSelectionVisual called with selectedVideoIndex: \(selectedVideoIndex?.description ?? "nil")")
         
         guard let selectedIndex = selectedVideoIndex,
-              selectedIndex < videos.count else {
-            print("Hiding selection overlay and ears")
-            selectionOverlay.isHidden = true
-            leftEar.isHidden = true
-            rightEar.isHidden = true
-            leftClipMask.isHidden = true
-            rightClipMask.isHidden = true
+              selectedIndex < videos.count,
+              selectedIndex < videoContainers.count else {
+            print("Hiding selection view")
+            selectionView.hideSelection()
             return
         }
         
+        let selectedContainer = videoContainers[selectedIndex]
         let selectedVideo = videos[selectedIndex]
         
-        // Calculate the rect for the entire selected video
+        // Calculate the rect for the entire selected video container
         if !selectedVideo.thumbnailViews.isEmpty {
             // Force layout update
-            stackView.layoutIfNeeded()
+            thumbnailContainer.layoutIfNeeded()
             
-            let firstThumbnail = selectedVideo.thumbnailViews.first!
-            let lastThumbnail = selectedVideo.thumbnailViews.last!
+            // Add container to thumbnail container if not already added
+            if selectedContainer.superview == nil {
+                thumbnailContainer.addSubview(selectedContainer)
+            }
             
-            // Calculate total width: number of thumbnails × 60px each
-            let thumbnailCount = selectedVideo.thumbnailViews.count
-            let totalWidth = CGFloat(thumbnailCount * 60)
+            // Use current container frame (which may be cropped) instead of recalculating
+            let currentContainerFrame = selectedContainer.frame
             
-            // Get start position from first thumbnail
-            let startX = CGFloat(selectedVideo.startIndex * 60)
-            let endX = startX + totalWidth
-            
-            // Update overlay frame (position relative to thumbnail stack view)
-            selectionOverlay.frame = CGRect(
-                x: startX,
+            // Update selection view frame based on current container dimensions
+            let selectionFrame = CGRect(
+                x: currentContainerFrame.origin.x - 20, // 20px left ear
                 y: 22, // Position below time container (20px height + 2px spacing)
-                width: totalWidth,
-                height: stackView.frame.height
+                width: currentContainerFrame.width + 40, // Add 40px for both ears
+                height: thumbnailContainer.frame.height
             )
             
-            // Position left ear (20px wide, attached to left side of video)
-            leftEar.frame = CGRect(
-                x: startX - 20, // Position 20px to the left of video start
-                y: 22, // Same y position as selection overlay
-                width: 20,
-                height: stackView.frame.height
-            )
+            selectionView.updateSelection(frame: selectionFrame)
             
-            // Position right ear (20px wide, attached to right side of video)
-            rightEar.frame = CGRect(
-                x: endX, // Position right after video end
-                y: 22, // Same y position as selection overlay
-                width: 20,
-                height: stackView.frame.height
-            )
-            
-            selectionOverlay.isHidden = false
-            leftEar.isHidden = false
-            rightEar.isHidden = false
-            
-            // Bring ears to front to ensure they stay above clipping masks
-            scrollView.bringSubviewToFront(leftEar)
-            scrollView.bringSubviewToFront(rightEar)
-            
-            // Initially no clipping masks needed
-            leftClipMask.isHidden = true
-            rightClipMask.isHidden = true
-            
-            print("Selection overlay: x=\(startX), width=\(totalWidth), thumbnails=\(thumbnailCount)")
-            print("Left ear at x=\(startX - 20), Right ear at x=\(endX)")
+            print("Selection view: x=\(currentContainerFrame.origin.x - 20), width=\(currentContainerFrame.width + 40)")
+            print("Container: x=\(currentContainerFrame.origin.x), width=\(currentContainerFrame.width)")
         } else {
-            selectionOverlay.isHidden = true
-            leftEar.isHidden = true
-            rightEar.isHidden = true
-            leftClipMask.isHidden = true
-            rightClipMask.isHidden = true
+            selectionView.hideSelection()
         }
     }
     
-    private func updateClippingMasks() {
-        guard let selectedIndex = selectedVideoIndex,
-              selectedIndex < videos.count else { return }
-        
-        let selectedVideo = videos[selectedIndex]
-        let videoStartX = CGFloat(selectedVideo.startIndex * 60)
-        let videoEndX = videoStartX + CGFloat(selectedVideo.thumbnailViews.count * 60)
-        
-        let leftEarEndX = leftEar.frame.origin.x + 20 // End of left ear
-        let rightEarStartX = rightEar.frame.origin.x // Start of right ear
-        
-        // Left clipping mask: covers area from video start to left ear end
-        if leftEarEndX > videoStartX {
-            leftClipMask.frame = CGRect(
-                x: videoStartX,
-                y: 22, // Same y position as thumbnails
-                width: leftEarEndX - videoStartX,
-                height: stackView.frame.height
-            )
-            leftClipMask.isHidden = false
-            print("Left clip mask: x=\(videoStartX), width=\(leftEarEndX - videoStartX)")
-        } else {
-            leftClipMask.isHidden = true
+    
+    private func updateScrollViewContentSize() {
+        // Calculate total width from all video containers using their current frames (may be cropped)
+        var totalWidth: CGFloat = 0
+        for container in videoContainers {
+            totalWidth += container.frame.width
         }
         
-        // Right clipping mask: covers area from right ear start to video end
-        if rightEarStartX < videoEndX {
-            rightClipMask.frame = CGRect(
-                x: rightEarStartX,
-                y: 22, // Same y position as thumbnails
-                width: videoEndX - rightEarStartX,
-                height: stackView.frame.height
+        // Update scroll view content size to match total thumbnail width
+        scrollView.contentSize = CGSize(width: totalWidth, height: scrollView.frame.height)
+        
+        // Update existing width constraints
+        stackViewWidthConstraint.constant = totalWidth
+        timeContainerWidthConstraint.constant = totalWidth
+        
+        print("Updated scrollView contentSize to width: \(totalWidth) for \(videoContainers.count) video containers")
+    }
+    
+    private func updateEffectiveContentSize() {
+        // Calculate total width from all video containers (including trimmed ones)
+        var totalWidth: CGFloat = 0
+        for container in videoContainers {
+            totalWidth += container.frame.width
+        }
+        
+        // Update scroll view content size
+        scrollView.contentSize = CGSize(width: totalWidth, height: scrollView.frame.height)
+        
+        // Update width constraints
+        stackViewWidthConstraint.constant = totalWidth
+        timeContainerWidthConstraint.constant = totalWidth
+        
+        print("Updated effective contentSize to width: \(totalWidth) based on container frames")
+    }
+    
+    
+    private func updateTimeLabelsForTrimming() {
+        // Remove all existing time labels
+        timeContainer.subviews.forEach { $0.removeFromSuperview() }
+        
+        var currentTimeOffset: Double = 0.0
+        var currentXPosition: CGFloat = 0.0
+        
+        // Rebuild entire timeline with proper time labels based on container layout
+        for (videoIndex, container) in videoContainers.enumerated() {
+            let thumbnailCount = container.getThumbnailCount()
+            let containerWidth = container.frame.width
+            
+            if videoIndex == selectedVideoIndex {
+                // Handle selected (potentially trimmed) video
+                let effectiveThumbnailCount = Int(containerWidth / 60)
+                
+                // Add time labels for visible portion only
+                if effectiveThumbnailCount > 0 {
+                    // Add start time label at current position
+                    addTimeLabel(timeValue: currentTimeOffset, xPosition: currentXPosition)
+                    
+                    // Add intermediate time labels
+                    for i in 1...effectiveThumbnailCount {
+                        let timeValue = currentTimeOffset + (Double(i) * thumbnailTimeInterval)
+                        let xPosition = currentXPosition + CGFloat(i * 60)
+                        addTimeLabel(timeValue: timeValue, xPosition: xPosition)
+                    }
+                    
+                    // Update offset for next video
+                    currentTimeOffset += Double(effectiveThumbnailCount) * thumbnailTimeInterval
+                    currentXPosition += containerWidth
+                }
+            } else {
+                // Handle non-selected videos (full duration)
+                // Add start time label at current position
+                addTimeLabel(timeValue: currentTimeOffset, xPosition: currentXPosition)
+                
+                // Add time labels for each thumbnail
+                for i in 1...thumbnailCount {
+                    let timeValue = currentTimeOffset + (Double(i) * thumbnailTimeInterval)
+                    let xPosition = currentXPosition + CGFloat(i * 60)
+                    addTimeLabel(timeValue: timeValue, xPosition: xPosition)
+                }
+                
+                // Update offset for next video
+                currentTimeOffset += Double(thumbnailCount) * thumbnailTimeInterval
+                currentXPosition += CGFloat(thumbnailCount * 60)
+            }
+        }
+        
+        print("Updated full timeline time labels, total duration: \(currentTimeOffset)s, total width: \(currentXPosition)px")
+    }
+    
+    // MARK: - Pan Gesture Handlers
+    func handleLeftEarPan(_ gesture: UIPanGestureRecognizer, selectionView: VideoSelectionView) {
+        guard let selectedIndex = selectedVideoIndex,
+              selectedIndex < videos.count,
+              selectedIndex < videoContainers.count else { return }
+        
+        let translation = gesture.translation(in: scrollView)
+        let selectedContainer = videoContainers[selectedIndex]
+        
+        // Get video segment data model
+        let selectedVideoSegment = videos[selectedIndex]
+        let originalWidth = selectedVideoSegment.originalWidth
+        let originalStartPosition = selectedVideoSegment.originalStartPosition
+        
+        switch gesture.state {
+        case .changed:
+            let newLeftEarX = selectionView.frame.origin.x + translation.x
+            
+            // Constrain left ear movement based on original video position
+            let minX = originalStartPosition - 20 // Original left ear position
+            let maxX = selectionView.frame.origin.x + selectionView.frame.width - 40 // Minimum content width
+            let clampedX = max(minX, min(newLeftEarX, maxX))
+            
+            // Calculate how much to clip from the left relative to original position
+            let clipStartX = max(0, clampedX + 20 - originalStartPosition)
+            
+            // Update selection view position
+            let newWidth = selectionView.frame.width - (clampedX - selectionView.frame.origin.x)
+            let newSelectionFrame = CGRect(x: clampedX, y: selectionView.frame.origin.y, width: newWidth, height: selectionView.frame.height)
+            selectionView.updateFrame(newSelectionFrame)
+            
+            // Update crop amount in data model
+            let currentRightEarStartX = selectionView.frame.origin.x + newWidth - 20
+            let rightCropFromOriginal = max(0, originalStartPosition + originalWidth - currentRightEarStartX)
+            
+            selectedVideoSegment.leftCropAmount = clipStartX
+            selectedVideoSegment.rightCropAmount = rightCropFromOriginal
+            
+            
+            // Update container frame: move start position and reduce width
+            // Content view inside stays at original size and position, creating clipping effect
+            selectedContainer.frame = CGRect(
+                x: originalStartPosition + clipStartX,
+                y: selectedContainer.frame.origin.y,
+                width: originalWidth - clipStartX - rightCropFromOriginal,
+                height: selectedContainer.frame.height
             )
-            rightClipMask.isHidden = false
-            print("Right clip mask: x=\(rightEarStartX), width=\(videoEndX - rightEarStartX)")
-        } else {
-            rightClipMask.isHidden = true
+            
+            // Move content view to compensate for container position change
+            // This keeps thumbnails in their original absolute positions
+            let contentView = selectedContainer.getContentView()
+            contentView.frame = CGRect(
+                x: -clipStartX,  // Negative offset to compensate for container movement
+                y: 0,
+                width: originalWidth,  // Keep original content width
+                height: selectedContainer.frame.height
+            )
+            
+            gesture.setTranslation(.zero, in: scrollView)
+            
+            // Update time labels and reposition subsequent videos
+            updateTimeLabelsForTrimming()
+            repositionVideoContainersAfterTrimming(selectedIndex: selectedIndex)
+            
+        case .ended:
+            updateEffectiveContentSize()
+            
+        default:
+            break
+        }
+    }
+    
+    func handleRightEarPan(_ gesture: UIPanGestureRecognizer, selectionView: VideoSelectionView) {
+        guard let selectedIndex = selectedVideoIndex,
+              selectedIndex < videos.count,
+              selectedIndex < videoContainers.count else { return }
+        
+        let translation = gesture.translation(in: scrollView)
+        let selectedContainer = videoContainers[selectedIndex]
+        
+        // Get video segment data model
+        let selectedVideoSegment = videos[selectedIndex]
+        let originalWidth = selectedVideoSegment.originalWidth
+        let originalStartPosition = selectedVideoSegment.originalStartPosition
+        
+        print("RightEar Debug - originalWidth: \(originalWidth), originalStartPosition: \(originalStartPosition)")
+        print("RightEar Debug - current selection width: \(selectionView.frame.width), translation: \(translation.x)")
+        
+        switch gesture.state {
+        case .changed:
+            let currentRightX = selectionView.frame.origin.x + selectionView.frame.width
+            let newRightX = currentRightX + translation.x
+            
+            // Calculate maximum allowed position based on original video content
+            let originalContainerEndX = originalStartPosition + originalWidth
+            
+            // Calculate boundaries based on original video content and current left ear position
+            let currentLeftEarEndX = selectionView.frame.origin.x + 20 // Where content actually starts
+            let minRightEarX = currentLeftEarEndX + 60 + 20 // Minimum 1 second content + right ear width
+            
+            // Always limit expansion to original duration - no video can exceed its original length
+            let maxRightEarX = originalContainerEndX + 20 // Maximum at original video end, never beyond
+            
+            print("RightEar Debug - currentRightX: \(currentRightX), newRightX: \(newRightX)")
+            print("RightEar Debug - minRightEarX: \(minRightEarX), maxRightEarX: \(maxRightEarX)")
+            
+            // Only constrain if the user is actually trying to go beyond boundaries
+            let clampedRightX: CGFloat
+            if newRightX < minRightEarX {
+                clampedRightX = minRightEarX
+                print("RightEar Debug - Constrained to minimum")
+            } else if newRightX > maxRightEarX {
+                clampedRightX = maxRightEarX
+                print("RightEar Debug - Constrained to maximum")
+            } else {
+                clampedRightX = newRightX
+                print("RightEar Debug - No constraint applied")
+            }
+            
+            // Calculate new selection width
+            let requestedSelectionWidth = clampedRightX - selectionView.frame.origin.x
+            
+            // Ensure selection view cannot exceed original video boundaries (including ears)
+            let maxAllowedSelectionWidth = originalWidth + 40 // Original content + 40px for ears
+            let constrainedSelectionWidth = min(requestedSelectionWidth, maxAllowedSelectionWidth)
+            
+            print("RightEar Debug - requestedSelectionWidth: \(requestedSelectionWidth), maxAllowedSelectionWidth: \(maxAllowedSelectionWidth), constrainedSelectionWidth: \(constrainedSelectionWidth)")
+            
+            // Update selection view with constrained width
+            let newSelectionFrame = CGRect(x: selectionView.frame.origin.x, y: selectionView.frame.origin.y, width: constrainedSelectionWidth, height: selectionView.frame.height)
+            selectionView.updateFrame(newSelectionFrame)
+            
+            // Use the constrained selection width for all subsequent calculations
+            let newSelectionWidth = constrainedSelectionWidth
+            
+            // Calculate container clipping from right: reduce width only
+            // Thumbnails inside stay in their original positions but get clipped
+            let requestedContentWidth = newSelectionWidth - 40 // Account for 20px ears on each side
+            let effectiveContentWidth = min(requestedContentWidth, originalWidth) // Never exceed original width
+            let clippedWidth = effectiveContentWidth
+            
+            print("RightEar Debug - requestedContentWidth: \(requestedContentWidth), originalWidth: \(originalWidth), effectiveContentWidth: \(effectiveContentWidth)")
+            
+            // Update crop amount in data model
+            let leftCropFromOriginal = max(0, currentLeftEarEndX - originalStartPosition)
+            let rightCropFromOriginal = max(0, originalWidth - (effectiveContentWidth + leftCropFromOriginal))
+            
+            selectedVideoSegment.leftCropAmount = leftCropFromOriginal
+            selectedVideoSegment.rightCropAmount = rightCropFromOriginal
+            
+            
+            // Update container frame: reduce width only (no position change)
+            // Content view inside stays at original size, creating clipping effect
+            selectedContainer.frame = CGRect(
+                x: selectedContainer.frame.origin.x, // Keep current x position
+                y: selectedContainer.frame.origin.y,
+                width: clippedWidth,
+                height: selectedContainer.frame.height
+            )
+            
+            print("RightEar Debug - Updated container width to: \(clippedWidth) for video \(selectedIndex)")
+            
+            // Content view stays at original position and size for right clipping
+            // No need to move content view as container position didn't change
+            let contentView = selectedContainer.getContentView()
+            contentView.frame = CGRect(
+                x: contentView.frame.origin.x, // Keep current x position
+                y: 0,
+                width: originalWidth, // Keep original content width
+                height: selectedContainer.frame.height
+            )
+            
+            gesture.setTranslation(.zero, in: scrollView)
+            
+            // Update time labels and reposition subsequent videos
+            updateTimeLabelsForTrimming()
+            repositionVideoContainersAfterTrimming(selectedIndex: selectedIndex)
+            
+        case .ended:
+            updateEffectiveContentSize()
+            
+        default:
+            break
+        }
+    }
+    
+    private func repositionVideoContainersAfterTrimming(selectedIndex: Int) {
+        var currentX: CGFloat = 0
+        
+        for (index, container) in videoContainers.enumerated() {
+            if index < selectedIndex {
+                // Keep original position for containers before selected
+                currentX = container.frame.origin.x + container.frame.width
+            } else if index == selectedIndex {
+                // Selected container already positioned, get its end
+                currentX = container.frame.origin.x + container.frame.width
+            } else {
+                // Reposition containers after selected
+                container.frame = CGRect(
+                    x: currentX,
+                    y: container.frame.origin.y,
+                    width: container.frame.width,
+                    height: container.frame.height
+                )
+                currentX += container.frame.width
+            }
         }
     }
     
@@ -412,6 +805,8 @@ class VideoTimelineView: UIView {
     }
     
     private func addThumbnailToMainTimeline(image: UIImage, videoIndex: Int) {
+        guard videoIndex < videoContainers.count else { return }
+        
         let imageView = UIImageView(image: image)
         imageView.contentMode = .scaleAspectFill
         imageView.clipsToBounds = true
@@ -430,8 +825,9 @@ class VideoTimelineView: UIView {
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(thumbnailTapped(_:)))
         imageView.addGestureRecognizer(tapGesture)
         
-        // Add to main timeline stack view
-        stackView.addArrangedSubview(imageView)
+        // Add to video container instead of main stack view
+        let videoContainer = videoContainers[videoIndex]
+        videoContainer.addThumbnail(imageView)
         
         // Add corresponding time labels (at thumbnail boundaries)
         addTimeLabelForThumbnail()
@@ -440,6 +836,9 @@ class VideoTimelineView: UIView {
         if videoIndex < videos.count {
             videos[videoIndex].thumbnailViews.append(imageView)
             
+            // Update container positioning only for the current video being added
+            updateSingleVideoContainerPosition(videoIndex: videoIndex)
+            
             // Update selection visual if this video is selected
             if selectedVideoIndex == videoIndex {
                 DispatchQueue.main.async {
@@ -447,10 +846,100 @@ class VideoTimelineView: UIView {
                 }
             }
         }
+        
+        // Update scroll view content size
+        updateScrollViewContentSize()
+    }
+    
+    private func updateVideoContainerPositions() {
+        var currentX: CGFloat = 0
+        
+        // Calculate appropriate height (60px for thumbnails)
+        let containerHeight: CGFloat = max(thumbnailContainer.frame.height, 60)
+        
+        for (index, container) in videoContainers.enumerated() {
+            let containerWidth = CGFloat(container.getThumbnailCount() * 60)
+            
+            container.frame = CGRect(
+                x: currentX,
+                y: 0,
+                width: containerWidth,
+                height: containerHeight
+            )
+            
+            // Update content view to match container size initially
+            let contentView = container.getContentView()
+            contentView.frame = CGRect(
+                x: 0,
+                y: 0,
+                width: containerWidth,
+                height: containerHeight
+            )
+            
+            // Add container to thumbnail container if not already added
+            if container.superview == nil {
+                thumbnailContainer.addSubview(container)
+            }
+            
+            // Update video start index
+            videos[index].startIndex = Int(currentX / 60)
+            
+            currentX += container.frame.width
+        }
+    }
+    
+    private func updateSingleVideoContainerPosition(videoIndex: Int) {
+        guard videoIndex < videoContainers.count else { return }
+        
+        let container = videoContainers[videoIndex]
+        let containerHeight: CGFloat = max(thumbnailContainer.frame.height, 60)
+        
+        // Calculate position based on previous containers
+        var currentX: CGFloat = 0
+        for i in 0..<videoIndex {
+            currentX += videoContainers[i].frame.width
+        }
+        
+        let containerWidth = CGFloat(container.getThumbnailCount() * 60)
+        
+        // Update container frame to accommodate new thumbnails
+        container.frame = CGRect(
+            x: currentX,
+            y: 0,
+            width: containerWidth,
+            height: containerHeight
+        )
+        
+        // Update content view to match container size
+        let contentView = container.getContentView()
+        contentView.frame = CGRect(
+            x: contentView.frame.origin.x, // Preserve x position (may be adjusted for cropping)
+            y: 0,
+            width: containerWidth,
+            height: containerHeight
+        )
+        
+        // Add container to thumbnail container if not already added
+        if container.superview == nil {
+            thumbnailContainer.addSubview(container)
+        }
+        
+        // Update video start index
+        videos[videoIndex].startIndex = Int(currentX / 60)
+        
+        // Update original dimensions continuously as thumbnails are added
+        videos[videoIndex].setOriginalDimensions(
+            thumbnailCount: container.getThumbnailCount(),
+            startPosition: currentX
+        )
     }
     
     private func addTimeLabelForThumbnail() {
-        let currentThumbnailCount = stackView.arrangedSubviews.count
+        // Calculate total thumbnail count from all containers
+        var currentThumbnailCount = 0
+        for container in videoContainers {
+            currentThumbnailCount += container.getThumbnailCount()
+        }
         
         // If this is the first thumbnail, add the starting time label (0.0)
         if currentThumbnailCount == 1 {
@@ -511,115 +1000,4 @@ class VideoTimelineView: UIView {
         return UIGraphicsGetImageFromCurrentImageContext() ?? UIImage()
     }
     
-    // MARK: - Ear Pan Gesture Handlers
-    
-    @objc private func leftEarPanned(_ gesture: UIPanGestureRecognizer) {
-        guard let selectedIndex = selectedVideoIndex,
-              selectedIndex < videos.count else { return }
-        
-        let translation = gesture.translation(in: scrollView)
-        let selectedVideo = videos[selectedIndex]
-        
-        switch gesture.state {
-        case .changed:
-            // Calculate new position for left ear
-            let currentX = leftEar.frame.origin.x
-            let newX = currentX + translation.x
-            
-            // Calculate boundaries
-            let videoStartX = CGFloat(selectedVideo.startIndex * 60)
-            let videoEndX = videoStartX + CGFloat(selectedVideo.thumbnailViews.count * 60)
-            let rightEarX = rightEar.frame.origin.x
-            
-            // Left ear constraints:
-            // - Cannot go left of video start
-            // - Cannot go right of right ear position
-            let minX = videoStartX - 20 // Original left ear position
-            let maxX = rightEarX - 20 // At least 20px from right ear
-            
-            let clampedX = max(minX, min(newX, maxX))
-            
-            // Update left ear position
-            leftEar.frame.origin.x = clampedX
-            
-            // Update selection overlay to start from new left ear position
-            let newSelectionStartX = clampedX + 20 // 20px ear width
-            let newSelectionWidth = rightEar.frame.origin.x - newSelectionStartX
-            
-            selectionOverlay.frame = CGRect(
-                x: newSelectionStartX,
-                y: selectionOverlay.frame.origin.y,
-                width: newSelectionWidth,
-                height: selectionOverlay.frame.height
-            )
-            
-            gesture.setTranslation(.zero, in: scrollView)
-            
-            // Update clipping masks to show visual feedback
-            updateClippingMasks()
-            
-            print("Left ear panned to x: \(clampedX), selection starts at: \(newSelectionStartX)")
-            
-        case .ended:
-            print("Left ear pan ended")
-            
-        default:
-            break
-        }
-    }
-    
-    @objc private func rightEarPanned(_ gesture: UIPanGestureRecognizer) {
-        guard let selectedIndex = selectedVideoIndex,
-              selectedIndex < videos.count else { return }
-        
-        let translation = gesture.translation(in: scrollView)
-        let selectedVideo = videos[selectedIndex]
-        
-        switch gesture.state {
-        case .changed:
-            // Calculate new position for right ear
-            let currentX = rightEar.frame.origin.x
-            let newX = currentX + translation.x
-            
-            // Calculate boundaries
-            let videoStartX = CGFloat(selectedVideo.startIndex * 60)
-            let videoEndX = videoStartX + CGFloat(selectedVideo.thumbnailViews.count * 60)
-            let leftEarX = leftEar.frame.origin.x
-            
-            // Right ear constraints:
-            // - Cannot go right of video end
-            // - Cannot go left of left ear position
-            let minX = leftEarX + 40 // At least 20px from left ear (20px ear + 20px gap)
-            let maxX = videoEndX // Original right ear position
-            
-            let clampedX = max(minX, min(newX, maxX))
-            
-            // Update right ear position
-            rightEar.frame.origin.x = clampedX
-            
-            // Update selection overlay to end at new right ear position
-            let leftEarEndX = leftEar.frame.origin.x + 20 // Left ear end position
-            let newSelectionWidth = clampedX - leftEarEndX
-            
-            selectionOverlay.frame = CGRect(
-                x: selectionOverlay.frame.origin.x,
-                y: selectionOverlay.frame.origin.y,
-                width: newSelectionWidth,
-                height: selectionOverlay.frame.height
-            )
-            
-            gesture.setTranslation(.zero, in: scrollView)
-            
-            // Update clipping masks to show visual feedback
-            updateClippingMasks()
-            
-            print("Right ear panned to x: \(clampedX), selection width: \(newSelectionWidth)")
-            
-        case .ended:
-            print("Right ear pan ended")
-            
-        default:
-            break
-        }
-    }
 }
