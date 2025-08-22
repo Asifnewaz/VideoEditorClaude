@@ -522,20 +522,24 @@ class VideoTimelineView: UIView {
                     currentXPosition += containerWidth
                 }
             } else {
-                // Handle non-selected videos (full duration)
-                // Add start time label at current position
-                addTimeLabel(timeValue: currentTimeOffset, xPosition: currentXPosition)
+                // Handle non-selected videos (use current container width, may be trimmed)
+                let effectiveThumbnailCount = Int(containerWidth / 60)
                 
-                // Add time labels for each thumbnail
-                for i in 1...thumbnailCount {
-                    let timeValue = currentTimeOffset + (Double(i) * thumbnailTimeInterval)
-                    let xPosition = currentXPosition + CGFloat(i * 60)
-                    addTimeLabel(timeValue: timeValue, xPosition: xPosition)
+                if effectiveThumbnailCount > 0 {
+                    // Add start time label at current position
+                    addTimeLabel(timeValue: currentTimeOffset, xPosition: currentXPosition)
+                    
+                    // Add time labels based on effective (possibly trimmed) width
+                    for i in 1...effectiveThumbnailCount {
+                        let timeValue = currentTimeOffset + (Double(i) * thumbnailTimeInterval)
+                        let xPosition = currentXPosition + CGFloat(i * 60)
+                        addTimeLabel(timeValue: timeValue, xPosition: xPosition)
+                    }
+                    
+                    // Update offset for next video using actual container width
+                    currentTimeOffset += Double(effectiveThumbnailCount) * thumbnailTimeInterval
+                    currentXPosition += containerWidth
                 }
-                
-                // Update offset for next video
-                currentTimeOffset += Double(thumbnailCount) * thumbnailTimeInterval
-                currentXPosition += CGFloat(thumbnailCount * 60)
             }
         }
         
