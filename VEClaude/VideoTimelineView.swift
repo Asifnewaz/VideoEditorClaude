@@ -465,27 +465,29 @@ class VideoTimelineView: UIView {
     
     private func updateScrollViewContentSize() {
         // Calculate total width from all video containers using their current frames (may be cropped)
-        var totalWidth: CGFloat = 0
+        var totalWidth: CGFloat = 25 // Start with 25px padding before first container
         for container in videoContainers {
             totalWidth += container.frame.width
         }
+        totalWidth += 25 // Add 25px padding after last container
         
-        // Update scroll view content size to match total thumbnail width
+        // Update scroll view content size to match total thumbnail width plus padding
         scrollView.contentSize = CGSize(width: totalWidth, height: scrollView.frame.height)
         
         // Update existing width constraints
         stackViewWidthConstraint.constant = totalWidth
         timeContainerWidthConstraint.constant = totalWidth
         
-        print("Updated scrollView contentSize to width: \(totalWidth) for \(videoContainers.count) video containers")
+        print("Updated scrollView contentSize to width: \(totalWidth) for \(videoContainers.count) video containers (includes 50px total padding)")
     }
     
     private func updateEffectiveContentSize() {
-        // Calculate total width from all video containers (including trimmed ones)
-        var totalWidth: CGFloat = 0
+        // Calculate total width from all video containers (including trimmed ones) plus padding
+        var totalWidth: CGFloat = 25 // Start with 25px padding before first container
         for container in videoContainers {
             totalWidth += container.frame.width
         }
+        totalWidth += 25 // Add 25px padding after last container
         
         // Update scroll view content size
         scrollView.contentSize = CGSize(width: totalWidth, height: scrollView.frame.height)
@@ -494,7 +496,7 @@ class VideoTimelineView: UIView {
         stackViewWidthConstraint.constant = totalWidth
         timeContainerWidthConstraint.constant = totalWidth
         
-        print("Updated effective contentSize to width: \(totalWidth) based on container frames")
+        print("Updated effective contentSize to width: \(totalWidth) based on container frames (includes 50px total padding)")
     }
     
     
@@ -503,7 +505,7 @@ class VideoTimelineView: UIView {
         timeContainer.subviews.forEach { $0.removeFromSuperview() }
         
         var currentTimeOffset: Double = 0.0
-        var currentXPosition: CGFloat = 0.0
+        var currentXPosition: CGFloat = 25.0 // Start with 25px padding before first container
         
         // Rebuild entire timeline with proper time labels based on container layout
         for (videoIndex, container) in videoContainers.enumerated() {
@@ -938,8 +940,8 @@ class VideoTimelineView: UIView {
         let container = videoContainers[videoIndex]
         let containerHeight: CGFloat = max(thumbnailContainer.frame.height, 60)
         
-        // Calculate position based on previous containers
-        var currentX: CGFloat = 0
+        // Calculate position based on previous containers with 25px initial padding
+        var currentX: CGFloat = 25 // Start with 25px padding
         for i in 0..<videoIndex {
             currentX += videoContainers[i].frame.width
         }
@@ -987,12 +989,12 @@ class VideoTimelineView: UIView {
         
         // If this is the first thumbnail, add the starting time label (0.0)
         if currentThumbnailCount == 1 {
-            addTimeLabel(timeValue: 0.0, xPosition: 0)
+            addTimeLabel(timeValue: 0.0, xPosition: 25) // Start at 25px padding
         }
         
         // Add the ending time label for this thumbnail
         let endTimeValue = Double(currentThumbnailCount) * thumbnailTimeInterval
-        let xPosition = CGFloat(currentThumbnailCount * 60) // 60px per thumbnail
+        let xPosition = 25 + CGFloat(currentThumbnailCount * 60) // 25px padding + 60px per thumbnail
         addTimeLabel(timeValue: endTimeValue, xPosition: xPosition)
     }
     
