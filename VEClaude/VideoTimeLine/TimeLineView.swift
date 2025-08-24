@@ -220,6 +220,12 @@ class TimeLineView: UIView {
         // Also try forcing a ruler refresh
         print("🟢 Also calling rulerView.forceRefresh")
         rulerView.forceRefresh()
+        
+        // Call again after layout to ensure frame sizes are available
+        DispatchQueue.main.async { [weak self] in
+            print("🟢 Delayed call to timeDidChanged after layout")
+            self?.timeDidChanged()
+        }
     }
     
     func resignVideoRangeView() {
@@ -303,16 +309,35 @@ class TimeLineView: UIView {
     
     fileprivate func timeDidChanged() {
         print("🟡 TimeLineView.timeDidChanged called")
+        print("🟡 Number of rangeViews: \(rangeViews.count)")
+        
         var duration: CGFloat = 0
-        rangeViews.forEach { (view) in
-            duration = duration + view.frame.size.width / widthPerSecond
+        rangeViews.enumerated().forEach { (index, view) in
+            let viewWidth = view.frame.size.width
+            let viewDuration = viewWidth / widthPerSecond
+            print("🟡 RangeView \(index): width=\(viewWidth), duration=\(viewDuration)")
+            duration = duration + viewDuration
         }
-        print("🟡 Calculated duration: \(duration)")
-        totalTimeLabel.text = String.init(format: "%.1f", duration)
+        print("🟡 Calculated duration from rangeViews: \(duration)")
+        
+        // Also calculate duration from trackItems as fallback
+        var trackItemsDuration: CGFloat = 0
+        trackItems.forEach { trackItem in
+            let itemDuration = CGFloat(trackItem.duration.seconds)
+            print("🟡 TrackItem duration: \(itemDuration)")
+            trackItemsDuration += itemDuration
+        }
+        print("🟡 Calculated duration from trackItems: \(trackItemsDuration)")
+        
+        // Use trackItems duration if rangeViews duration is 0
+        let finalDuration = duration > 0 ? duration : trackItemsDuration
+        print("🟡 Final duration to use: \(finalDuration)")
+        
+        totalTimeLabel.text = String.init(format: "%.1f", finalDuration)
         
         // Update ruler with new duration
-        print("🟡 About to call rulerView.updateDuration with: \(duration)")
-        rulerView.updateDuration(duration)
+        print("🟡 About to call rulerView.updateDuration with: \(finalDuration)")
+        rulerView.updateDuration(finalDuration)
         print("🟡 TimeLineView.timeDidChanged completed")
     }
     

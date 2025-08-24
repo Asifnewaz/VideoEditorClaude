@@ -41,6 +41,11 @@ class TimelineRulerView: UIView {
         
         // Force create a test label to see if basic functionality works
         createTestLabel()
+        
+        // Test with a fixed duration to verify updateTimeLabels works
+        print("🔴 Testing with fixed duration of 5.0 seconds")
+        totalDuration = 5.0
+        updateTimeLabels()
     }
     
     private func createTestLabel() {
