@@ -347,9 +347,20 @@ class TimeLineView: UIView {
         
         totalTimeLabel.text = String.init(format: "%.1f", finalDuration)
         
-        // Update ruler with new duration
+        // Calculate trimmed range from range views
+        var trimmedStartTime: CGFloat = 0
+        var trimmedEndTime: CGFloat = finalDuration
+        
+        if let firstView = rangeViews.first {
+            trimmedStartTime = CGFloat(firstView.contentView.startTime.seconds)
+            trimmedEndTime = CGFloat(firstView.contentView.endTime.seconds)
+            print("🟡 Trimmed range: \(trimmedStartTime) to \(trimmedEndTime)")
+        }
+        
+        // Update ruler with new duration and trimmed range
         print("🟡 About to call rulerView.updateDuration with: \(finalDuration)")
         rulerView.updateDuration(finalDuration)
+        rulerView.updateTrimmedRange(startTime: trimmedStartTime, endTime: trimmedEndTime)
         print("🟡 TimeLineView.timeDidChanged completed")
     }
     
