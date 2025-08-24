@@ -97,49 +97,42 @@ class TimelineRulerView: UIView {
             return 
         }
         
-        // Check if we're showing trimmed content or full timeline
+        // Check if we're showing trimmed content
         let showingTrimmedContent = trimmedStartTime > 0 || (trimmedEndTime > 0 && trimmedEndTime < totalDuration)
-        let startTime = showingTrimmedContent ? trimmedStartTime : 0
-        let endTime = showingTrimmedContent ? trimmedEndTime : totalDuration
-        let duration = endTime - startTime
         
         print("Updating time labels - showing trimmed: \(showingTrimmedContent)")
-        print("  start: \(startTime), end: \(endTime), duration: \(duration)")
-        
-        if duration <= 0 || !showingTrimmedContent {
-            print("Showing full timeline duration: \(totalDuration)")
-            let numberOfLabels = Int(ceil(totalDuration)) + 1
-            for i in 0..<numberOfLabels {
-                let timeValue = Double(i)
-                if timeValue <= Double(totalDuration) {
-                    addTimeLabel(timeValue: timeValue, position: i)
-                }
-            }
-            if totalDuration > floor(totalDuration) {
-                addTimeLabel(timeValue: Double(totalDuration), relativePosition: Double(totalDuration), isFinal: true)
-            }
-            return
+        if showingTrimmedContent {
+            print("  trimmed range: \(trimmedStartTime)s to \(trimmedEndTime)s of total \(totalDuration)s")
+        } else {
+            print("  full timeline: 0s to \(totalDuration)s")
         }
         
-        // Create labels for the trimmed portion
-        let startIndex = Int(floor(startTime))
-        let endIndex = Int(ceil(endTime))
-        
-        print("Creating labels from \(startIndex) to \(endIndex)")
-        
-        for i in startIndex...endIndex {
+        // Always create labels for complete timeline
+        let numberOfLabels = Int(ceil(totalDuration)) + 1
+        for i in 0..<numberOfLabels {
             let timeValue = Double(i)
-            if timeValue >= Double(startTime) && timeValue <= Double(endTime) {
-                addTimeLabel(timeValue: timeValue, relativePosition: timeValue - Double(startTime))
+            if timeValue <= Double(totalDuration) {
+                let shouldShow = !showingTrimmedContent || 
+                               (timeValue >= Double(trimmedStartTime) && timeValue <= Double(trimmedEndTime))
+                addTimeLabel(timeValue: timeValue, absolutePosition: timeValue, shouldShow: shouldShow)
             }
         }
         
-        // Add start and end time labels if they're not whole numbers
-        if startTime != floor(startTime) {
-            addTimeLabel(timeValue: Double(startTime), relativePosition: 0, isFinal: false)
+        // Add final duration label if it's not a whole number
+        if totalDuration > floor(totalDuration) {
+            let shouldShow = !showingTrimmedContent || 
+                           (Double(totalDuration) >= Double(trimmedStartTime) && Double(totalDuration) <= Double(trimmedEndTime))
+            addTimeLabel(timeValue: Double(totalDuration), absolutePosition: Double(totalDuration), shouldShow: shouldShow, isFinal: true)
         }
-        if endTime != floor(endTime) {
-            addTimeLabel(timeValue: Double(endTime), relativePosition: Double(endTime - startTime), isFinal: true)
+        
+        // Add trimmed boundary labels if they're not whole numbers
+        if showingTrimmedContent {
+            if trimmedStartTime != floor(trimmedStartTime) {
+                addTimeLabel(timeValue: Double(trimmedStartTime), absolutePosition: Double(trimmedStartTime), shouldShow: true)
+            }
+            if trimmedEndTime != floor(trimmedEndTime) && trimmedEndTime < totalDuration {
+                addTimeLabel(timeValue: Double(trimmedEndTime), absolutePosition: Double(trimmedEndTime), shouldShow: true)
+            }
         }
         
         print("Added \(timeLabels.count) time labels")
@@ -147,6 +140,41 @@ class TimelineRulerView: UIView {
     
     private func addTimeLabel(timeValue: Double, position: Int, isFinal: Bool = false) {
         addTimeLabel(timeValue: timeValue, relativePosition: Double(position), isFinal: isFinal)
+    }
+    
+    private func addTimeLabel(timeValue: Double, absolutePosition: Double, shouldShow: Bool, isFinal: Bool = false) {
+        var time = timeValue
+        if time >= Double(totalDuration) {
+            time = Double(totalDuration)
+        }
+        
+        let timeLabel = UILabel()
+        timeLabel.text = String(format: "%.1f", time)
+        timeLabel.font = UIFont.monospacedDigitSystemFont(ofSize: 9, weight: .medium)
+        timeLabel.textColor = .black
+        timeLabel.backgroundColor = UIColor.white.withAlphaComponent(0.2)
+        timeLabel.textAlignment = .center
+        timeLabel.layer.cornerRadius = 2
+        timeLabel.clipsToBounds = true
+        timeLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Hide labels that fall outside trimmed range
+        timeLabel.isHidden = !shouldShow
+        
+        addSubview(timeLabel)
+        timeLabels.append(timeLabel)
+        
+        // Position based on absolute position in timeline
+        let xPosition = contentStartOffset + (CGFloat(absolutePosition) * widthPerSecond)
+        
+        NSLayoutConstraint.activate([
+            timeLabel.centerXAnchor.constraint(equalTo: leadingAnchor, constant: xPosition),
+            timeLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+            timeLabel.widthAnchor.constraint(equalToConstant: 30),
+            timeLabel.heightAnchor.constraint(equalToConstant: 16)
+        ])
+        
+        print("Added time label \(time) at x position: \(xPosition) (absolute pos: \(absolutePosition), show: \(shouldShow))")
     }
     
     private func addTimeLabel(timeValue: Double, relativePosition: Double, isFinal: Bool = false) {
