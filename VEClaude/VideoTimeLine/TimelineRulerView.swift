@@ -25,6 +25,12 @@ class TimelineRulerView: UIView {
     
     private var timeLabels: [UILabel] = []
     
+    var contentStartOffset: CGFloat = 24 {
+        didSet {
+            updateTimeLabels()
+        }
+    }
+    
     override init(frame: CGRect) {
         super.init(frame: frame)
         setupRuler()
@@ -111,12 +117,12 @@ class TimelineRulerView: UIView {
         addSubview(timeLabel)
         timeLabels.append(timeLabel)
         
-        // Position the time label
+        // Position the time label starting from content offset (thumbnail position)
         let xPosition: CGFloat
         if isFinal {
-            xPosition = totalDuration * widthPerSecond
+            xPosition = contentStartOffset + (totalDuration * widthPerSecond)
         } else {
-            xPosition = CGFloat(position) * widthPerSecond
+            xPosition = contentStartOffset + (CGFloat(position) * widthPerSecond)
         }
         
         NSLayoutConstraint.activate([
@@ -161,7 +167,8 @@ class TimelineRulerView: UIView {
     }
     
     func updateContentOffset(_ offset: CGFloat) {
-        // Not needed in simple label approach
+        print("🔵 TimelineRulerView.updateContentOffset called with: \(offset)")
+        contentStartOffset = offset
     }
     
     func updateTheme(majorTick: UIColor = .white,

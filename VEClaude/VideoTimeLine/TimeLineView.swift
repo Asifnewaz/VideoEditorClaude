@@ -68,6 +68,7 @@ class TimeLineView: UIView {
         // Initialize ruler view at top of parent view
         rulerView = TimelineRulerView()
         rulerView.widthPerSecond = widthPerSecond
+        rulerView.contentStartOffset = videoRangeViewEarWidth // Start from thumbnail position, not ear
         rulerView.backgroundColor = .systemGray5
         addSubview(rulerView)
         
@@ -496,6 +497,10 @@ extension TimeLineView: VideoRangeViewDelegate {
     func videoRangeView(_ view: VideoRangeView, updateLeftOffset offset: CGFloat, auto: Bool) {
         updateCurrentClipPlayerItem(time: view.contentView.startTime, view: view)
         
+        // Update ruler when ear moves
+        print("🟣 Left ear moved, updating ruler")
+        timeDidChanged()
+        
         if auto {
             return
         }
@@ -528,12 +533,21 @@ extension TimeLineView: VideoRangeViewDelegate {
         }
         view.contentView.endExpand()
         endUpdate(view: view, isLeft: true)
+        
+        // Final ruler update when left ear trimming ends
+        print("🟣 Left ear trimming ended, final ruler update")
+        timeDidChanged()
     }
     
     func videoRangeView(_ view: VideoRangeView, updateRightOffset offset: CGFloat, auto: Bool) {
         updateCurrentClipPlayerItem(time: view.contentView.endTime, view: view)
         let center = view.convert(view.rightEar.center, to: self)
         centerLineView.center = CGPoint(x: center.x - view.rightEar.frame.size.width * 0.5, y: center.y)
+        
+        // Update ruler when ear moves
+        print("🟣 Right ear moved, updating ruler")
+        timeDidChanged()
+        
         if auto {
             var contentOffset = scrollView.contentOffset
             contentOffset.x += offset
@@ -554,6 +568,10 @@ extension TimeLineView: VideoRangeViewDelegate {
             self.scrollView.contentInset = inset
         }
         endUpdate(view: view, isLeft: false)
+        
+        // Final ruler update when right ear trimming ends  
+        print("🟣 Right ear trimming ended, final ruler update")
+        timeDidChanged()
     }
     
     private func endUpdate(view: VideoRangeView, isLeft: Bool) {
