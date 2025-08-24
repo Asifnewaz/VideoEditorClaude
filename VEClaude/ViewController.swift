@@ -9,9 +9,10 @@ import UIKit
 import AVFoundation
 import MobileCoreServices
 
-class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate, VideoTimelineViewDelegate {
+class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
 
-    private var videoTimelineView: VideoTimelineView!
+    private var timelineView: TimeLineView!
+    private var trackItems: [AssetTrackItem] = []
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -27,17 +28,19 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         videoPickerButton.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
         videoPickerButton.addTarget(self, action: #selector(selectVideoButtonTapped), for: .touchUpInside)
         
-        videoTimelineView = VideoTimelineView()
-        videoTimelineView.timelineHeight = 80 // Set custom height to 80px
-        videoTimelineView.thumbnailTimeInterval = 1.0 // 1 thumbnail per second
-        videoTimelineView.delegate = self
-        videoTimelineView.isHidden = true // Initially hidden until video is selected
+        // Initialize professional TimeLineView
+        timelineView = TimeLineView()
+        timelineView.backgroundColor = .systemGray6
+        timelineView.layer.cornerRadius = 8
+        timelineView.layer.borderWidth = 1
+        timelineView.layer.borderColor = UIColor.systemGray4.cgColor
+        timelineView.isHidden = true // Initially hidden until video is selected
         
         videoPickerButton.translatesAutoresizingMaskIntoConstraints = false
-        videoTimelineView.translatesAutoresizingMaskIntoConstraints = false
+        timelineView.translatesAutoresizingMaskIntoConstraints = false
         
         view.addSubview(videoPickerButton)
-        view.addSubview(videoTimelineView)
+        view.addSubview(timelineView)
         
         NSLayoutConstraint.activate([
             videoPickerButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
@@ -45,10 +48,10 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
             videoPickerButton.widthAnchor.constraint(equalToConstant: 200),
             videoPickerButton.heightAnchor.constraint(equalToConstant: 50),
             
-            videoTimelineView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
-            videoTimelineView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            videoTimelineView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            videoTimelineView.heightAnchor.constraint(equalToConstant: 80)
+            timelineView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            timelineView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            timelineView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            timelineView.heightAnchor.constraint(equalToConstant: 100)
         ])
     }
     
@@ -82,16 +85,42 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     private func handleSelectedVideo(url: URL) {
         print("Video selected successfully: \(url.lastPathComponent)")
         
-        // Show timeline and add the video
-        videoTimelineView.isHidden = false
-        videoTimelineView.addVideo(from: url)
+        // Create AssetTrackItem from video URL
+        let asset = AVAsset(url: url)
+        let trackItem = AssetTrackItem(resource: asset)
+        trackItem.assetType = .video
+        
+        // Add to trackItems array
+        trackItems.append(trackItem)
+        
+        // Show timeline and reload with track items
+        timelineView.isHidden = false
+        timelineView.reload(with: trackItems)
+        
+        print("Added video to timeline: duration = \(asset.duration.seconds)s, total videos: \(trackItems.count)")
     }
     
-    // MARK: - VideoTimelineViewDelegate
-    func videoTimelineView(_ timelineView: VideoTimelineView, didSelectVideoAt index: Int) {
-        print("Selected video at index: \(index)")
-        // Handle video selection - you can add more functionality here
-        // For example: show video details, enable editing options, etc.
+    // MARK: - Helper Methods
+    
+    func addMultipleVideos(_ urls: [URL]) {
+        for url in urls {
+            let asset = AVAsset(url: url)
+            let trackItem = AssetTrackItem(resource: asset)
+            trackItem.assetType = .video
+            trackItems.append(trackItem)
+        }
+        
+        timelineView.isHidden = false
+        timelineView.reload(with: trackItems)
+        
+        print("Added \(urls.count) videos to timeline, total: \(trackItems.count)")
+    }
+    
+    func clearTimeline() {
+        trackItems.removeAll()
+        timelineView.removeAllRangeViews()
+        timelineView.isHidden = true
+        print("Timeline cleared")
     }
 }
 
