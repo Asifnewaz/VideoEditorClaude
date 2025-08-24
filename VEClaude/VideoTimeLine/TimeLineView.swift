@@ -338,11 +338,15 @@ class TimeLineView: UIView {
         }
         print("🟡 Calculated duration from trackItems: \(trackItemsDuration)")
         
-        // Use trackItems duration if rangeViews duration is 0, or if there's a significant discrepancy
+        // Check if any video is being actively edited
+        let hasActiveEdit = rangeViews.contains { $0.isEditActive }
+        
+        // During active editing, prioritize real-time content width calculation
+        // Otherwise use trackItems as fallback for accuracy
         let discrepancy = abs(duration - trackItemsDuration)
-        let useTrackItemsDuration = duration == 0 || discrepancy > 0.5
+        let useTrackItemsDuration = !hasActiveEdit && (duration == 0 || discrepancy > 0.5)
         let finalDuration = useTrackItemsDuration ? trackItemsDuration : duration
-        print("🟡 Duration discrepancy: \(discrepancy), using trackItems: \(useTrackItemsDuration)")
+        print("🟡 Duration discrepancy: \(discrepancy), active edit: \(hasActiveEdit), using trackItems: \(useTrackItemsDuration)")
         print("🟡 Final duration to use: \(finalDuration)")
         
         totalTimeLabel.text = String.init(format: "%.1f", finalDuration)
