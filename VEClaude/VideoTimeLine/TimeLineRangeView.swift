@@ -1,5 +1,13 @@
 //
 //  TimeLineRangeView.swift
+//  VEClaude
+//
+//  Created by BCL Device 24 on 24/8/25.
+//
+
+
+//
+//  TimeLineRangeView.swift
 //  XDtv
 //
 //  Created by Vito on 05/01/2018.

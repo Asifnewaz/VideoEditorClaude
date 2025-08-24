@@ -450,7 +450,6 @@ extension TimeLineView: VideoRangeViewDelegate {
         
         var contentOffset = scrollView.contentOffset
         contentOffset.x -= offset
-        #warning("Below line is commented")
         scrollView.setContentOffset(contentOffset, animated: false)
     }
     
@@ -482,7 +481,6 @@ extension TimeLineView: VideoRangeViewDelegate {
         if auto {
             var contentOffset = scrollView.contentOffset
             contentOffset.x += offset
-            #warning("Below line is commented")
             scrollView.setContentOffset(contentOffset, animated: false)
         } else {
             var inset = scrollView.contentInset

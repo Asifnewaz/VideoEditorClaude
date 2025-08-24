@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "lockUnselectedRight.pdf",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
