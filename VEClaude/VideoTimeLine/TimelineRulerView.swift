@@ -87,18 +87,21 @@ class TimelineRulerView: UIView {
         
         print("Updating time labels for duration: \(totalDuration)")
         
-        let numberOfLabels = Int(floor(totalDuration)) + 1 // Include 0 and final duration // Include 0 and final duration
+        let numberOfLabels = Int(ceil(totalDuration)) + 1 // Use ceil to include the duration second
+        print("Number of labels to create: \(numberOfLabels)")
         
         for i in 0..<numberOfLabels {
             let timeValue = Double(i)
+            print("Creating label \(i): timeValue=\(timeValue), condition: \(timeValue <= Double(totalDuration))")
             if timeValue <= Double(totalDuration) {
                 addTimeLabel(timeValue: timeValue, position: i)
             }
         }
         
-        // Add final duration label if it's not a whole number
-        if totalDuration != floor(totalDuration) {
-            //addTimeLabel(timeValue: Double(totalDuration), position: Int(totalDuration), isFinal: true)
+        // Always add final duration label to show exact end time
+        if totalDuration > floor(totalDuration) {
+            print("Adding final duration label: \(totalDuration)")
+            addTimeLabel(timeValue: Double(totalDuration), position: Int(totalDuration), isFinal: true)
         }
         
         print("Added \(timeLabels.count) time labels")
@@ -127,7 +130,7 @@ class TimelineRulerView: UIView {
         if isFinal {
             xPosition = contentStartOffset + (totalDuration * widthPerSecond)
         } else {
-            xPosition = contentStartOffset + (CGFloat(position) * widthPerSecond)
+            xPosition = contentStartOffset + (CGFloat(timeValue) * widthPerSecond)
         }
         
         NSLayoutConstraint.activate([
