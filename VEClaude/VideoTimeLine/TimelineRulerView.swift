@@ -44,7 +44,12 @@ class TimelineRulerView: UIView {
         // Remove all existing time labels
         clearTimeLabels()
         
-        guard totalDuration > 0 else { return }
+        guard totalDuration > 0 else { 
+            print("No duration set for ruler view")
+            return 
+        }
+        
+        print("Updating time labels for duration: \(totalDuration)")
         
         let numberOfLabels = Int(ceil(totalDuration)) + 1 // Include 0 and final duration
         
@@ -59,6 +64,8 @@ class TimelineRulerView: UIView {
         if totalDuration != floor(totalDuration) {
             addTimeLabel(timeValue: Double(totalDuration), position: Int(totalDuration), isFinal: true)
         }
+        
+        print("Added \(timeLabels.count) time labels")
     }
     
     private func addTimeLabel(timeValue: Double, position: Int, isFinal: Bool = false) {
@@ -66,7 +73,10 @@ class TimelineRulerView: UIView {
         timeLabel.text = String(format: "%.1f", timeValue)
         timeLabel.font = UIFont.monospacedDigitSystemFont(ofSize: 10, weight: .medium)
         timeLabel.textColor = .black
+        timeLabel.backgroundColor = UIColor.white.withAlphaComponent(0.8) // Add background for visibility
         timeLabel.textAlignment = .center
+        timeLabel.layer.cornerRadius = 2
+        timeLabel.clipsToBounds = true
         timeLabel.translatesAutoresizingMaskIntoConstraints = false
         
         addSubview(timeLabel)
@@ -83,7 +93,8 @@ class TimelineRulerView: UIView {
         NSLayoutConstraint.activate([
             timeLabel.centerXAnchor.constraint(equalTo: leadingAnchor, constant: xPosition),
             timeLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
-            timeLabel.widthAnchor.constraint(equalToConstant: 30)
+            timeLabel.widthAnchor.constraint(equalToConstant: 30),
+            timeLabel.heightAnchor.constraint(equalToConstant: 16)
         ])
         
         print("Added time label \(timeValue) at x position: \(xPosition)")

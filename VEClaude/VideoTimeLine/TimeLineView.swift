@@ -65,6 +65,12 @@ class TimeLineView: UIView {
     }
     
     func commonInit() {
+        // Initialize ruler view at top of parent view
+        rulerView = TimelineRulerView()
+        rulerView.widthPerSecond = widthPerSecond
+        rulerView.backgroundColor = .systemGray5
+        addSubview(rulerView)
+        
         scrollView = UIScrollView()
         addSubview(scrollView)
         scrollView.alwaysBounceVertical = false
@@ -76,12 +82,6 @@ class TimeLineView: UIView {
         contentView = UIView()
         contentView.backgroundColor = .clear
         scrollView.addSubview(contentView)
-        
-        // Initialize ruler view
-        rulerView = TimelineRulerView()
-        rulerView.widthPerSecond = widthPerSecond
-        rulerView.backgroundColor = .clear
-        contentView.addSubview(rulerView)
         
         videoListContentView = UIView()
         videoListContentView.backgroundColor = .clear
@@ -97,8 +97,16 @@ class TimeLineView: UIView {
         totalTimeLabel.textColor = UIColor.white
         totalTimeLabel.font = UIFont.systemFont(ofSize: 16)
         
+        // Ruler view constraints (at the top of parent view)
+        rulerView.translatesAutoresizingMaskIntoConstraints = false
+        rulerView.topAnchor.constraint(equalTo: topAnchor).isActive = true
+        rulerView.leftAnchor.constraint(equalTo: leftAnchor).isActive = true
+        rulerView.rightAnchor.constraint(equalTo: rightAnchor).isActive = true
+        rulerView.heightAnchor.constraint(equalToConstant: 20).isActive = true
+        
+        // ScrollView constraints (below ruler)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.topAnchor.constraint(equalTo: topAnchor).isActive = true
+        scrollView.topAnchor.constraint(equalTo: rulerView.bottomAnchor).isActive = true
         scrollView.leftAnchor.constraint(equalTo: leftAnchor).isActive = true
         scrollView.rightAnchor.constraint(equalTo: rightAnchor).isActive = true
         scrollView.bottomAnchor.constraint(equalTo: bottomAnchor).isActive = true
@@ -107,19 +115,12 @@ class TimeLineView: UIView {
         contentView.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor).isActive = true
         contentView.leftAnchor.constraint(equalTo: scrollView.leftAnchor).isActive = true
         contentView.rightAnchor.constraint(equalTo: scrollView.rightAnchor).isActive = true
-        scrollContentHeightConstraint = contentView.heightAnchor.constraint(equalToConstant: 70) // Increased height for ruler
+        scrollContentHeightConstraint = contentView.heightAnchor.constraint(equalToConstant: 50) // Back to original height
         scrollContentHeightConstraint.isActive = true
         
-        // Ruler view constraints (at the top)
-        rulerView.translatesAutoresizingMaskIntoConstraints = false
-        rulerView.topAnchor.constraint(equalTo: contentView.topAnchor).isActive = true
-        rulerView.leftAnchor.constraint(equalTo: contentView.leftAnchor).isActive = true
-        rulerView.rightAnchor.constraint(equalTo: contentView.rightAnchor).isActive = true
-        rulerView.heightAnchor.constraint(equalToConstant: 20).isActive = true
-        
-        // Video list content view constraints (below ruler)
+        // Video list content view constraints (fills content view)
         videoListContentView.translatesAutoresizingMaskIntoConstraints = false
-        videoListContentView.topAnchor.constraint(equalTo: rulerView.bottomAnchor).isActive = true
+        videoListContentView.topAnchor.constraint(equalTo: contentView.topAnchor).isActive = true
         videoListContentView.leftAnchor.constraint(equalTo: contentView.leftAnchor).isActive = true
         videoListContentView.rightAnchor.constraint(equalTo: contentView.rightAnchor).isActive = true
         videoListContentView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor).isActive = true
