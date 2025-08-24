@@ -80,6 +80,7 @@ class TimeLineView: UIView {
         // Initialize ruler view
         rulerView = TimelineRulerView()
         rulerView.widthPerSecond = widthPerSecond
+        rulerView.contentOffset = videoRangeViewEarWidth // Start from ear width offset
         rulerView.backgroundColor = .clear
         contentView.addSubview(rulerView)
         
