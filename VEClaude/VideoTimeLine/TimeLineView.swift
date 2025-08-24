@@ -68,7 +68,7 @@ class TimeLineView: UIView {
         // Initialize ruler view at top of parent view
         rulerView = TimelineRulerView()
         rulerView.widthPerSecond = widthPerSecond
-        rulerView.contentStartOffset = videoRangeViewEarWidth // Start from thumbnail position, not ear
+        //rulerView.contentStartOffset = videoRangeViewEarWidth // Start from thumbnail position, not ear
         rulerView.backgroundColor = .systemGray5
         addSubview(rulerView)
         
@@ -101,8 +101,8 @@ class TimeLineView: UIView {
         // Ruler view constraints (at the top of parent view)
         rulerView.translatesAutoresizingMaskIntoConstraints = false
         rulerView.topAnchor.constraint(equalTo: topAnchor).isActive = true
-        rulerView.leftAnchor.constraint(equalTo: leftAnchor).isActive = true
-        rulerView.rightAnchor.constraint(equalTo: rightAnchor).isActive = true
+        rulerView.leftAnchor.constraint(equalTo: contentView.leftAnchor, constant: videoRangeViewEarWidth).isActive = true
+        rulerView.rightAnchor.constraint(equalTo: contentView.rightAnchor, constant: -videoRangeViewEarWidth).isActive = true
         rulerView.heightAnchor.constraint(equalToConstant: 20).isActive = true
         
         // ScrollView constraints (below ruler)
@@ -315,9 +315,17 @@ class TimeLineView: UIView {
         var duration: CGFloat = 0
         rangeViews.enumerated().forEach { (index, view) in
             let viewWidth = view.frame.size.width
+            let contentWidth = view.contentView.contentWidth
             let viewDuration = viewWidth / widthPerSecond
-            print("🟡 RangeView \(index): width=\(viewWidth), duration=\(viewDuration)")
-            duration = duration + viewDuration
+            let contentDuration = contentWidth / widthPerSecond
+            let expectedWidth = CGFloat(trackItems[index].duration.seconds) * widthPerSecond
+            print("🟡 RangeView \(index): total width=\(viewWidth), content width=\(contentWidth)")
+            print("🟡   Total duration=\(viewDuration), content duration=\(contentDuration)")
+            print("🟡   Expected width for trackItem: \(expectedWidth) (trackItem duration: \(trackItems[index].duration.seconds))")
+            print("🟡   Width difference: \(viewWidth - expectedWidth)")
+            
+            // Use content width for more accurate duration calculation
+            duration = duration + contentDuration
         }
         print("🟡 Calculated duration from rangeViews: \(duration)")
         
@@ -330,8 +338,11 @@ class TimeLineView: UIView {
         }
         print("🟡 Calculated duration from trackItems: \(trackItemsDuration)")
         
-        // Use trackItems duration if rangeViews duration is 0
-        let finalDuration = duration > 0 ? duration : trackItemsDuration
+        // Use trackItems duration if rangeViews duration is 0, or if there's a significant discrepancy
+        let discrepancy = abs(duration - trackItemsDuration)
+        let useTrackItemsDuration = duration == 0 || discrepancy > 0.5
+        let finalDuration = useTrackItemsDuration ? trackItemsDuration : duration
+        print("🟡 Duration discrepancy: \(discrepancy), using trackItems: \(useTrackItemsDuration)")
         print("🟡 Final duration to use: \(finalDuration)")
         
         totalTimeLabel.text = String.init(format: "%.1f", finalDuration)

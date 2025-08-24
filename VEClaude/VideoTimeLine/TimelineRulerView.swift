@@ -25,7 +25,7 @@ class TimelineRulerView: UIView {
     
     private var timeLabels: [UILabel] = []
     
-    var contentStartOffset: CGFloat = 24 {
+    var contentStartOffset: CGFloat = 0 {
         didSet {
             updateTimeLabels()
         }
@@ -44,19 +44,20 @@ class TimelineRulerView: UIView {
     private func setupRuler() {
         self.backgroundColor = .clear
         self.isUserInteractionEnabled = false
+        //self.clipsToBounds = true
         
         // Force create a test label to see if basic functionality works
-        createTestLabel()
+        //createTestLabel()
         
         // Test with a fixed duration to verify updateTimeLabels works
         print("🔴 Testing with fixed duration of 5.0 seconds")
-        totalDuration = 5.0
+        totalDuration = 1.0
         updateTimeLabels()
     }
     
     private func createTestLabel() {
         let testLabel = UILabel()
-        testLabel.text = "TEST"
+        testLabel.text = ""
         testLabel.font = UIFont.monospacedDigitSystemFont(ofSize: 10, weight: .medium)
         testLabel.textColor = .red
         testLabel.backgroundColor = UIColor.yellow.withAlphaComponent(0.8)
@@ -86,7 +87,7 @@ class TimelineRulerView: UIView {
         
         print("Updating time labels for duration: \(totalDuration)")
         
-        let numberOfLabels = Int(ceil(totalDuration)) + 1 // Include 0 and final duration
+        let numberOfLabels = Int(floor(totalDuration)) + 1 // Include 0 and final duration // Include 0 and final duration
         
         for i in 0..<numberOfLabels {
             let timeValue = Double(i)
@@ -97,15 +98,19 @@ class TimelineRulerView: UIView {
         
         // Add final duration label if it's not a whole number
         if totalDuration != floor(totalDuration) {
-            addTimeLabel(timeValue: Double(totalDuration), position: Int(totalDuration), isFinal: true)
+            //addTimeLabel(timeValue: Double(totalDuration), position: Int(totalDuration), isFinal: true)
         }
         
         print("Added \(timeLabels.count) time labels")
     }
     
     private func addTimeLabel(timeValue: Double, position: Int, isFinal: Bool = false) {
+        var time = timeValue;
+        if(time >= totalDuration) {
+            time = totalDuration
+        }
         let timeLabel = UILabel()
-        timeLabel.text = String(format: "%.1f", timeValue)
+        timeLabel.text = String(format: "%.1f", time)
         timeLabel.font = UIFont.monospacedDigitSystemFont(ofSize: 10, weight: .medium)
         timeLabel.textColor = .black
         timeLabel.backgroundColor = UIColor.white.withAlphaComponent(0.8) // Add background for visibility
@@ -132,7 +137,7 @@ class TimelineRulerView: UIView {
             timeLabel.heightAnchor.constraint(equalToConstant: 16)
         ])
         
-        print("Added time label \(timeValue) at x position: \(xPosition)")
+        print("Added time label \(time) at x position: \(xPosition)")
     }
     
     private func clearTimeLabels() {
