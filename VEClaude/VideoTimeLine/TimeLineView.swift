@@ -347,21 +347,46 @@ class TimeLineView: UIView {
         
         totalTimeLabel.text = String.init(format: "%.1f", finalDuration)
         
-        // For multiple videos, show the complete combined timeline
-        // Reset trimmed range to show full timeline
+        // Check if any video is currently being edited (has active selection)
+        let activeVideo = rangeViews.first { $0.isEditActive }
         var trimmedStartTime: CGFloat = 0
         var trimmedEndTime: CGFloat = 0 // 0 means use full duration
         
-        print("🟡 Handling \(rangeViews.count) videos - showing complete timeline")
-        print("🟡 Timeline range: \(trimmedStartTime) to \(finalDuration) (end=0 means full)")
+        if let activeVideo = activeVideo {
+            // Show trimmed range for the actively edited video
+            // Calculate the offset position of this video in the timeline
+            var videoOffset: CGFloat = 0
+            for view in rangeViews {
+                if view == activeVideo {
+                    break
+                }
+                // Add the content width of previous videos
+                videoOffset += view.contentView.contentWidth / widthPerSecond
+            }
+            
+            // Calculate the trimmed range relative to the complete timeline
+            let videoStart = CGFloat(activeVideo.contentView.startTime.seconds)
+            let videoEnd = CGFloat(activeVideo.contentView.endTime.seconds)
+            let videoDuration = videoEnd - videoStart
+            
+            trimmedStartTime = videoOffset + videoStart
+            trimmedEndTime = videoOffset + videoEnd
+            print("🟡 Active video being trimmed: video offset: \(videoOffset)s, local: \(videoStart)s-\(videoEnd)s, global: \(trimmedStartTime)s-\(trimmedEndTime)s")
+        } else {
+            // No active editing - show complete timeline
+            print("🟡 No active editing - showing complete timeline: 0 to \(finalDuration)")
+        }
         
-        // Debug: show each video's range
+        print("🟡 Handling \(rangeViews.count) videos")
+        
+        // Debug: show each video's range and edit status
         rangeViews.enumerated().forEach { (index, view) in
             let start = CGFloat(view.contentView.startTime.seconds)
             let end = CGFloat(view.contentView.endTime.seconds)
             let width = view.frame.size.width
             let contentWidth = view.contentView.contentWidth
-            print("🟡   Video \(index): \(start)s-\(end)s, width: \(width), contentWidth: \(contentWidth)")
+            let isActive = view.isEditActive
+            print("🟡   Video \(index): \(start)s-\(end)s, width: \(width), contentWidth: \(contentWidth), active: \(isActive)")
         }
         
         // Update ruler with new duration and trimmed range
@@ -513,11 +538,17 @@ extension TimeLineView: VideoRangeViewDelegate {
     
     func videoRangeViewBeginUpdateLeft(_ view: VideoRangeView) {
         scrollView.delegate = nil
+        // Set this view as actively being edited
+        view.isEditActive = true
+        rangeViews.filter({ $0 != view && $0.isEditActive }).forEach({ $0.isEditActive = false })
         replacePlayerItemToCurrentClipItem(view: view)
     }
     
     func videoRangeViewBeginUpdateRight(_ view: VideoRangeView) {
         scrollView.delegate = nil
+        // Set this view as actively being edited
+        view.isEditActive = true
+        rangeViews.filter({ $0 != view && $0.isEditActive }).forEach({ $0.isEditActive = false })
 //        delegate?.clipTimelineBeginClip(self)
 //        VideoEditManager.shared.beginClipVideo()
         replacePlayerItemToCurrentClipItem(view: view)
@@ -544,6 +575,8 @@ extension TimeLineView: VideoRangeViewDelegate {
     }
     
     func videoRangeViewDidEndUpdateLeftOffset(_ view: VideoRangeView) {
+        // Clear edit active state when dragging ends
+        view.isEditActive = false
         restoreTimePlayerItem(view: view)
         scrollView.delegate = self
         var inset = scrollView.contentInset
@@ -589,6 +622,8 @@ extension TimeLineView: VideoRangeViewDelegate {
     }
     
     func videoRangeViewDidEndUpdateRightOffset(_ view: VideoRangeView) {
+        // Clear edit active state when dragging ends
+        view.isEditActive = false
         restoreTimePlayerItem(view: view)
         scrollView.delegate = self
         var inset = scrollView.contentInset
