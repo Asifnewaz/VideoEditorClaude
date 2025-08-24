@@ -38,6 +38,30 @@ class TimelineRulerView: UIView {
     private func setupRuler() {
         self.backgroundColor = .clear
         self.isUserInteractionEnabled = false
+        
+        // Force create a test label to see if basic functionality works
+        createTestLabel()
+    }
+    
+    private func createTestLabel() {
+        let testLabel = UILabel()
+        testLabel.text = "TEST"
+        testLabel.font = UIFont.monospacedDigitSystemFont(ofSize: 10, weight: .medium)
+        testLabel.textColor = .red
+        testLabel.backgroundColor = UIColor.yellow.withAlphaComponent(0.8)
+        testLabel.textAlignment = .center
+        testLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        addSubview(testLabel)
+        
+        NSLayoutConstraint.activate([
+            testLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
+            testLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+            testLabel.widthAnchor.constraint(equalToConstant: 40),
+            testLabel.heightAnchor.constraint(equalToConstant: 16)
+        ])
+        
+        print("🔴 Created test label at position 10")
     }
     
     private func updateTimeLabels() {
@@ -108,11 +132,27 @@ class TimelineRulerView: UIView {
     // MARK: - Public Methods
     
     func updateDuration(_ duration: CGFloat) {
+        print("🔵 TimelineRulerView.updateDuration called with: \(duration)")
         totalDuration = duration
+        print("🔵 TimelineRulerView.updateDuration set totalDuration to: \(totalDuration)")
+        
+        // Force call updateTimeLabels to ensure it's executed
+        print("🔵 Manually calling updateTimeLabels from updateDuration")
+        updateTimeLabels()
     }
     
     func updateWidthPerSecond(_ width: CGFloat) {
+        print("🔵 TimelineRulerView.updateWidthPerSecond called with: \(width)")
         widthPerSecond = width
+        
+        // Force call updateTimeLabels to ensure it's executed
+        print("🔵 Manually calling updateTimeLabels from updateWidthPerSecond")
+        updateTimeLabels()
+    }
+    
+    func forceRefresh() {
+        print("🔵 forceRefresh called - duration: \(totalDuration), width: \(widthPerSecond)")
+        updateTimeLabels()
     }
     
     func updateContentOffset(_ offset: CGFloat) {

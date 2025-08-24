@@ -214,7 +214,12 @@ class TimeLineView: UIView {
         }
         
         // Update ruler after loading videos
+        print("🟢 About to call timeDidChanged after loading videos")
         timeDidChanged()
+        
+        // Also try forcing a ruler refresh
+        print("🟢 Also calling rulerView.forceRefresh")
+        rulerView.forceRefresh()
     }
     
     func resignVideoRangeView() {
@@ -297,14 +302,18 @@ class TimeLineView: UIView {
     
     
     fileprivate func timeDidChanged() {
+        print("🟡 TimeLineView.timeDidChanged called")
         var duration: CGFloat = 0
         rangeViews.forEach { (view) in
             duration = duration + view.frame.size.width / widthPerSecond
         }
+        print("🟡 Calculated duration: \(duration)")
         totalTimeLabel.text = String.init(format: "%.1f", duration)
         
         // Update ruler with new duration
+        print("🟡 About to call rulerView.updateDuration with: \(duration)")
         rulerView.updateDuration(duration)
+        print("🟡 TimeLineView.timeDidChanged completed")
     }
     
     
