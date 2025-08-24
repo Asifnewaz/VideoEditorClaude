@@ -347,14 +347,21 @@ class TimeLineView: UIView {
         
         totalTimeLabel.text = String.init(format: "%.1f", finalDuration)
         
-        // Calculate trimmed range from range views
+        // For multiple videos, show the complete combined timeline
+        // Reset trimmed range to show full timeline
         var trimmedStartTime: CGFloat = 0
-        var trimmedEndTime: CGFloat = finalDuration
+        var trimmedEndTime: CGFloat = 0 // 0 means use full duration
         
-        if let firstView = rangeViews.first {
-            trimmedStartTime = CGFloat(firstView.contentView.startTime.seconds)
-            trimmedEndTime = CGFloat(firstView.contentView.endTime.seconds)
-            print("🟡 Trimmed range: \(trimmedStartTime) to \(trimmedEndTime)")
+        print("🟡 Handling \(rangeViews.count) videos - showing complete timeline")
+        print("🟡 Timeline range: \(trimmedStartTime) to \(finalDuration) (end=0 means full)")
+        
+        // Debug: show each video's range
+        rangeViews.enumerated().forEach { (index, view) in
+            let start = CGFloat(view.contentView.startTime.seconds)
+            let end = CGFloat(view.contentView.endTime.seconds)
+            let width = view.frame.size.width
+            let contentWidth = view.contentView.contentWidth
+            print("🟡   Video \(index): \(start)s-\(end)s, width: \(width), contentWidth: \(contentWidth)")
         }
         
         // Update ruler with new duration and trimmed range

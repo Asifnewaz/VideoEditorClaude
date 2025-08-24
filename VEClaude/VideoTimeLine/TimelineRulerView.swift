@@ -97,21 +97,26 @@ class TimelineRulerView: UIView {
             return 
         }
         
-        // Use trimmed times if available, otherwise use full duration
-        let startTime = trimmedStartTime > 0 || trimmedEndTime > 0 ? trimmedStartTime : 0
-        let endTime = trimmedEndTime > 0 ? trimmedEndTime : totalDuration
+        // Check if we're showing trimmed content or full timeline
+        let showingTrimmedContent = trimmedStartTime > 0 || (trimmedEndTime > 0 && trimmedEndTime < totalDuration)
+        let startTime = showingTrimmedContent ? trimmedStartTime : 0
+        let endTime = showingTrimmedContent ? trimmedEndTime : totalDuration
         let duration = endTime - startTime
         
-        print("Updating time labels - start: \(startTime), end: \(endTime), duration: \(duration)")
+        print("Updating time labels - showing trimmed: \(showingTrimmedContent)")
+        print("  start: \(startTime), end: \(endTime), duration: \(duration)")
         
-        if duration <= 0 {
-            print("Invalid duration, using totalDuration: \(totalDuration)")
+        if duration <= 0 || !showingTrimmedContent {
+            print("Showing full timeline duration: \(totalDuration)")
             let numberOfLabels = Int(ceil(totalDuration)) + 1
             for i in 0..<numberOfLabels {
                 let timeValue = Double(i)
                 if timeValue <= Double(totalDuration) {
                     addTimeLabel(timeValue: timeValue, position: i)
                 }
+            }
+            if totalDuration > floor(totalDuration) {
+                addTimeLabel(timeValue: Double(totalDuration), relativePosition: Double(totalDuration), isFinal: true)
             }
             return
         }
