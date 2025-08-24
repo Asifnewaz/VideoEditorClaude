@@ -23,17 +23,6 @@ class TimelineRulerView: UIView {
         }
     }
     
-    var trimmedStartTime: CGFloat = 0 {
-        didSet {
-            updateTimeLabels()
-        }
-    }
-    
-    var trimmedEndTime: CGFloat = 0 {
-        didSet {
-            updateTimeLabels()
-        }
-    }
     
     private var timeLabels: [UILabel] = []
     
@@ -97,52 +86,30 @@ class TimelineRulerView: UIView {
             return 
         }
         
-        // Check if we're showing trimmed content
-        let showingTrimmedContent = trimmedStartTime > 0 || (trimmedEndTime > 0 && trimmedEndTime < totalDuration)
+        print("Updating time labels for complete timeline: 0s to \(totalDuration)s")
         
-        print("Updating time labels - showing trimmed: \(showingTrimmedContent)")
-        if showingTrimmedContent {
-            print("  trimmed range: \(trimmedStartTime)s to \(trimmedEndTime)s of total \(totalDuration)s")
-        } else {
-            print("  full timeline: 0s to \(totalDuration)s")
-        }
-        
-        // Always create labels for complete timeline
+        // Always create labels for complete timeline from 0 to totalDuration
         let numberOfLabels = Int(ceil(totalDuration)) + 1
         for i in 0..<numberOfLabels {
             let timeValue = Double(i)
             if timeValue <= Double(totalDuration) {
-                let shouldShow = !showingTrimmedContent || 
-                               (timeValue >= Double(trimmedStartTime) && timeValue <= Double(trimmedEndTime))
-                addTimeLabel(timeValue: timeValue, absolutePosition: timeValue, shouldShow: shouldShow)
+                addTimeLabel(timeValue: timeValue, absolutePosition: timeValue)
             }
         }
         
         // Add final duration label if it's not a whole number
         if totalDuration > floor(totalDuration) {
-            let shouldShow = !showingTrimmedContent || 
-                           (Double(totalDuration) >= Double(trimmedStartTime) && Double(totalDuration) <= Double(trimmedEndTime))
-            addTimeLabel(timeValue: Double(totalDuration), absolutePosition: Double(totalDuration), shouldShow: shouldShow, isFinal: true)
+            addTimeLabel(timeValue: Double(totalDuration), absolutePosition: Double(totalDuration), isFinal: true)
         }
         
-        // Add trimmed boundary labels if they're not whole numbers
-        if showingTrimmedContent {
-            if trimmedStartTime != floor(trimmedStartTime) {
-                addTimeLabel(timeValue: Double(trimmedStartTime), absolutePosition: Double(trimmedStartTime), shouldShow: true)
-            }
-            if trimmedEndTime != floor(trimmedEndTime) && trimmedEndTime < totalDuration {
-                addTimeLabel(timeValue: Double(trimmedEndTime), absolutePosition: Double(trimmedEndTime), shouldShow: true)
-            }
-        }
-        
-        print("Added \(timeLabels.count) time labels")
+        print("Added \(timeLabels.count) time labels for complete timeline")
     }
     
     private func addTimeLabel(timeValue: Double, position: Int, isFinal: Bool = false) {
         addTimeLabel(timeValue: timeValue, relativePosition: Double(position), isFinal: isFinal)
     }
     
-    private func addTimeLabel(timeValue: Double, absolutePosition: Double, shouldShow: Bool, isFinal: Bool = false) {
+    private func addTimeLabel(timeValue: Double, absolutePosition: Double, isFinal: Bool = false) {
         var time = timeValue
         if time >= Double(totalDuration) {
             time = Double(totalDuration)
@@ -158,9 +125,6 @@ class TimelineRulerView: UIView {
         timeLabel.clipsToBounds = true
         timeLabel.translatesAutoresizingMaskIntoConstraints = false
         
-        // Hide labels that fall outside trimmed range
-        timeLabel.isHidden = !shouldShow
-        
         addSubview(timeLabel)
         timeLabels.append(timeLabel)
         
@@ -174,7 +138,7 @@ class TimelineRulerView: UIView {
             timeLabel.heightAnchor.constraint(equalToConstant: 16)
         ])
         
-        print("Added time label \(time) at x position: \(xPosition) (absolute pos: \(absolutePosition), show: \(shouldShow))")
+        print("Added time label \(time) at x position: \(xPosition) (absolute pos: \(absolutePosition))")
     }
     
     private func addTimeLabel(timeValue: Double, relativePosition: Double, isFinal: Bool = false) {
@@ -245,11 +209,6 @@ class TimelineRulerView: UIView {
         contentStartOffset = offset
     }
     
-    func updateTrimmedRange(startTime: CGFloat, endTime: CGFloat) {
-        print("🔵 TimelineRulerView.updateTrimmedRange called with: \(startTime) to \(endTime)")
-        trimmedStartTime = startTime
-        trimmedEndTime = endTime
-    }
     
     func updateTheme(majorTick: UIColor = .white,
                     minorTick: UIColor? = nil,

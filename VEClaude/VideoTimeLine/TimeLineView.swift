@@ -347,35 +347,7 @@ class TimeLineView: UIView {
         
         totalTimeLabel.text = String.init(format: "%.1f", finalDuration)
         
-        // Check if any video is currently being edited (has active selection)
-        let activeVideo = rangeViews.first { $0.isEditActive }
-        var trimmedStartTime: CGFloat = 0
-        var trimmedEndTime: CGFloat = 0 // 0 means use full duration
-        
-        if let activeVideo = activeVideo {
-            // Show trimmed range for the actively edited video
-            // Calculate the offset position of this video in the timeline
-            var videoOffset: CGFloat = 0
-            for view in rangeViews {
-                if view == activeVideo {
-                    break
-                }
-                // Add the content width of previous videos
-                videoOffset += view.contentView.contentWidth / widthPerSecond
-            }
-            
-            // Calculate the trimmed range relative to the complete timeline
-            let videoStart = CGFloat(activeVideo.contentView.startTime.seconds)
-            let videoEnd = CGFloat(activeVideo.contentView.endTime.seconds)
-            let videoDuration = videoEnd - videoStart
-            
-            trimmedStartTime = videoOffset + videoStart
-            trimmedEndTime = videoOffset + videoEnd
-            print("🟡 Active video being trimmed: video offset: \(videoOffset)s, local: \(videoStart)s-\(videoEnd)s, global: \(trimmedStartTime)s-\(trimmedEndTime)s")
-        } else {
-            // No active editing - show complete timeline
-            print("🟡 No active editing - showing complete timeline: 0 to \(finalDuration)")
-        }
+        print("🟡 Always showing complete timeline: 0 to \(finalDuration)")
         
         print("🟡 Handling \(rangeViews.count) videos")
         
@@ -389,10 +361,9 @@ class TimeLineView: UIView {
             print("🟡   Video \(index): \(start)s-\(end)s, width: \(width), contentWidth: \(contentWidth), active: \(isActive)")
         }
         
-        // Update ruler with new duration and trimmed range
+        // Update ruler with new duration
         print("🟡 About to call rulerView.updateDuration with: \(finalDuration)")
         rulerView.updateDuration(finalDuration)
-        rulerView.updateTrimmedRange(startTime: trimmedStartTime, endTime: trimmedEndTime)
         print("🟡 TimeLineView.timeDidChanged completed")
     }
     
