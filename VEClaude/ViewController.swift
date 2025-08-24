@@ -51,7 +51,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
             timelineView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
             timelineView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             timelineView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            timelineView.heightAnchor.constraint(equalToConstant: 100)
+            timelineView.heightAnchor.constraint(equalToConstant: 120) // Increased height for ruler
         ])
     }
     

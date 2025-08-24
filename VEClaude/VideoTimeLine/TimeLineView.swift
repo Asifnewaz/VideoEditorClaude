@@ -16,6 +16,7 @@ class TimeLineView: UIView {
     fileprivate(set) var videoListContentView: UIView!
     private(set) var centerLineView: UIView!
     private(set) var totalTimeLabel: UILabel!
+    private(set) var rulerView: TimelineRulerView!
     
     private(set) var scrollContentHeightConstraint: NSLayoutConstraint!
     
@@ -76,6 +77,12 @@ class TimeLineView: UIView {
         contentView.backgroundColor = .clear
         scrollView.addSubview(contentView)
         
+        // Initialize ruler view
+        rulerView = TimelineRulerView()
+        rulerView.widthPerSecond = widthPerSecond
+        rulerView.backgroundColor = .clear
+        contentView.addSubview(rulerView)
+        
         videoListContentView = UIView()
         videoListContentView.backgroundColor = .clear
         contentView.addSubview(videoListContentView)
@@ -100,11 +107,19 @@ class TimeLineView: UIView {
         contentView.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor).isActive = true
         contentView.leftAnchor.constraint(equalTo: scrollView.leftAnchor).isActive = true
         contentView.rightAnchor.constraint(equalTo: scrollView.rightAnchor).isActive = true
-        scrollContentHeightConstraint = contentView.heightAnchor.constraint(equalToConstant: 50)
+        scrollContentHeightConstraint = contentView.heightAnchor.constraint(equalToConstant: 70) // Increased height for ruler
         scrollContentHeightConstraint.isActive = true
         
+        // Ruler view constraints (at the top)
+        rulerView.translatesAutoresizingMaskIntoConstraints = false
+        rulerView.topAnchor.constraint(equalTo: contentView.topAnchor).isActive = true
+        rulerView.leftAnchor.constraint(equalTo: contentView.leftAnchor).isActive = true
+        rulerView.rightAnchor.constraint(equalTo: contentView.rightAnchor).isActive = true
+        rulerView.heightAnchor.constraint(equalToConstant: 20).isActive = true
+        
+        // Video list content view constraints (below ruler)
         videoListContentView.translatesAutoresizingMaskIntoConstraints = false
-        videoListContentView.topAnchor.constraint(equalTo: contentView.topAnchor).isActive = true
+        videoListContentView.topAnchor.constraint(equalTo: rulerView.bottomAnchor).isActive = true
         videoListContentView.leftAnchor.constraint(equalTo: contentView.leftAnchor).isActive = true
         videoListContentView.rightAnchor.constraint(equalTo: contentView.rightAnchor).isActive = true
         videoListContentView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor).isActive = true
@@ -196,6 +211,9 @@ class TimeLineView: UIView {
                 view.rightPaddingViewConstraint.constant = 0
             }
         }
+        
+        // Update ruler after loading videos
+        timeDidChanged()
     }
     
     func resignVideoRangeView() {
@@ -283,6 +301,9 @@ class TimeLineView: UIView {
             duration = duration + view.frame.size.width / widthPerSecond
         }
         totalTimeLabel.text = String.init(format: "%.1f", duration)
+        
+        // Update ruler with new duration
+        rulerView.updateDuration(duration)
     }
     
     
