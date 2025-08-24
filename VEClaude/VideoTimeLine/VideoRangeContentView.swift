@@ -87,7 +87,8 @@ class VideoRangeContentView: RangeContentView {
     // MARK: - DataSource
     
     private var imageSize: CGSize {
-        return CGSize(width: bounds.height, height: bounds.height)
+        // Use widthPerSecond for thumbnail width to ensure 1 second = 1 thumbnail
+        return CGSize(width: widthPerSecond, height: bounds.height)
     }
     
     private func removeImageViewsOutOf(range: CountableRange<Int>) {
