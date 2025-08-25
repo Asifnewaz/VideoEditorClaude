@@ -270,10 +270,17 @@ final class TimelineDataModelTests: XCTestCase {
     
     func testNotificationPostedOnTrackAdd() {
         // Given
-        let expectation = XCTNSNotificationExpectation(
-            name: TimelineDataModel.dataChangedNotification,
-            object: timelineDataModel
-        )
+        let expectation = expectation(description: "Track add notification")
+        var notificationReceived = false
+        
+        let observer = NotificationCenter.default.addObserver(
+            forName: TimelineDataModel.dataChangedNotification,
+            object: timelineDataModel,
+            queue: .main
+        ) { _ in
+            notificationReceived = true
+            expectation.fulfill()
+        }
         
         let trackInfo = createMockVideoTrackInfo()
         let track = TimelineTrack(trackInfo: trackInfo, positionInTimeline: CMTime.zero)
@@ -283,6 +290,10 @@ final class TimelineDataModelTests: XCTestCase {
         
         // Then
         wait(for: [expectation], timeout: 1.0)
+        XCTAssertTrue(notificationReceived)
+        
+        // Cleanup
+        NotificationCenter.default.removeObserver(observer)
     }
     
     func testNotificationPostedOnTrackRemove() {
@@ -291,16 +302,27 @@ final class TimelineDataModelTests: XCTestCase {
         let track = TimelineTrack(trackInfo: trackInfo, positionInTimeline: CMTime.zero)
         timelineDataModel.addTrack(track)
         
-        let expectation = XCTNSNotificationExpectation(
-            name: TimelineDataModel.dataChangedNotification,
-            object: timelineDataModel
-        )
+        let expectation = expectation(description: "Track remove notification")
+        var notificationReceived = false
+        
+        let observer = NotificationCenter.default.addObserver(
+            forName: TimelineDataModel.dataChangedNotification,
+            object: timelineDataModel,
+            queue: .main
+        ) { _ in
+            notificationReceived = true
+            expectation.fulfill()
+        }
         
         // When
         timelineDataModel.removeTrack(withId: track.id)
         
         // Then
         wait(for: [expectation], timeout: 1.0)
+        XCTAssertTrue(notificationReceived)
+        
+        // Cleanup
+        NotificationCenter.default.removeObserver(observer)
     }
     
     // MARK: - Performance Tests

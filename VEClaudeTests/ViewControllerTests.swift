@@ -229,10 +229,17 @@ final class ViewControllerTests: XCTestCase {
     
     func testTimelineDataModelNotificationReceived() {
         // Given
-        let expectation = XCTNSNotificationExpectation(
-            name: TimelineDataModel.dataChangedNotification,
-            object: viewController.getCurrentTimelineData()
-        )
+        let expectation = expectation(description: "Timeline data model changed notification")
+        var notificationReceived = false
+        
+        let observer = NotificationCenter.default.addObserver(
+            forName: TimelineDataModel.dataChangedNotification,
+            object: viewController.getCurrentTimelineData(),
+            queue: .main
+        ) { _ in
+            notificationReceived = true
+            expectation.fulfill()
+        }
         
         // When
         let asset = AVAsset(url: mockVideoURL)
@@ -240,6 +247,10 @@ final class ViewControllerTests: XCTestCase {
         
         // Then
         wait(for: [expectation], timeout: 1.0)
+        XCTAssertTrue(notificationReceived)
+        
+        // Cleanup
+        NotificationCenter.default.removeObserver(observer)
     }
     
     // MARK: - UI State Tests
