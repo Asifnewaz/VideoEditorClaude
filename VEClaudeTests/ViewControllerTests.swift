@@ -32,6 +32,15 @@ final class ViewControllerTests: XCTestCase {
         super.tearDown()
     }
     
+    // MARK: - Helper Methods
+    
+    private func addMockTrack(at position: CMTime = CMTime.zero) {
+        let asset = AVAsset(url: mockVideoURL)
+        let mockTrackInfo = VideoTrackInfo.createMockTrackInfo(asset: asset)
+        let track = TimelineTrack(trackInfo: mockTrackInfo, positionInTimeline: position)
+        viewController.getCurrentTimelineData().addTrack(track)
+    }
+    
     // MARK: - Initialization Tests
     
     func testViewControllerInitialization() {
@@ -54,8 +63,7 @@ final class ViewControllerTests: XCTestCase {
     
     func testGetCurrentTimelineData() {
         // Given
-        let asset = AVAsset(url: mockVideoURL)
-        viewController.getCurrentTimelineData().addTrack(from: asset, at: CMTime.zero)
+        addMockTrack()
         
         // When
         let timelineData = viewController.getCurrentTimelineData()
@@ -67,8 +75,7 @@ final class ViewControllerTests: XCTestCase {
     
     func testGetTrackAtIndex() {
         // Given
-        let asset = AVAsset(url: mockVideoURL)
-        viewController.getCurrentTimelineData().addTrack(from: asset, at: CMTime.zero)
+        addMockTrack()
         
         // When
         let track = viewController.getTrackAtIndex(0)
@@ -90,11 +97,8 @@ final class ViewControllerTests: XCTestCase {
     
     func testGetTracksAtTime() {
         // Given
-        let asset1 = AVAsset(url: mockVideoURL)
-        let asset2 = AVAsset(url: mockVideoURL)
-        
-        viewController.getCurrentTimelineData().addTrack(from: asset1, at: CMTime.zero)
-        viewController.getCurrentTimelineData().addTrack(from: asset2, at: CMTime(seconds: 5.0, preferredTimescale: 600))
+        addMockTrack()
+        addMockTrack(at: CMTime(seconds: 5.0, preferredTimescale: 600))
         
         // When
         let tracksAtZero = viewController.getTracksAtTime(CMTime.zero)
@@ -109,8 +113,7 @@ final class ViewControllerTests: XCTestCase {
     
     func testUpdateTrackCropRange() {
         // Given
-        let asset = AVAsset(url: mockVideoURL)
-        viewController.getCurrentTimelineData().addTrack(from: asset, at: CMTime.zero)
+        addMockTrack()
         
         let newStartTime = CMTime(seconds: 1.0, preferredTimescale: 600)
         let newEndTime = CMTime(seconds: 8.0, preferredTimescale: 600)
@@ -135,8 +138,7 @@ final class ViewControllerTests: XCTestCase {
     
     func testMoveTrack() {
         // Given
-        let asset = AVAsset(url: mockVideoURL)
-        viewController.getCurrentTimelineData().addTrack(from: asset, at: CMTime.zero)
+        addMockTrack()
         
         let newPosition = CMTime(seconds: 3.0, preferredTimescale: 600)
         
@@ -170,8 +172,7 @@ final class ViewControllerTests: XCTestCase {
     
     func testValidateValidTimeline() {
         // Given
-        let asset = AVAsset(url: mockVideoURL)
-        viewController.getCurrentTimelineData().addTrack(from: asset, at: CMTime.zero)
+        addMockTrack()
         
         // When
         let issues = viewController.validateCurrentTimeline()
@@ -212,8 +213,7 @@ final class ViewControllerTests: XCTestCase {
     
     func testClearTimeline() {
         // Given - Add some tracks first
-        let asset = AVAsset(url: mockVideoURL)
-        viewController.getCurrentTimelineData().addTrack(from: asset, at: CMTime.zero)
+        addMockTrack()
         XCTAssertFalse(viewController.getCurrentTimelineData().isEmpty)
         
         // When
@@ -242,8 +242,7 @@ final class ViewControllerTests: XCTestCase {
         }
         
         // When
-        let asset = AVAsset(url: mockVideoURL)
-        viewController.getCurrentTimelineData().addTrack(from: asset, at: CMTime.zero)
+        addMockTrack()
         
         // Then
         wait(for: [expectation], timeout: 1.0)
@@ -305,7 +304,9 @@ final class ViewControllerTests: XCTestCase {
         
         // When - Add video, modify it, then clear
         let asset = AVAsset(url: mockVideoURL)
-        viewController.getCurrentTimelineData().addTrack(from: asset, at: CMTime.zero)
+        let mockTrackInfo = VideoTrackInfo.createMockTrackInfo(asset: asset)
+        let track = TimelineTrack(trackInfo: mockTrackInfo, positionInTimeline: CMTime.zero)
+        viewController.getCurrentTimelineData().addTrack(track)
         
         // Verify track was added
         XCTAssertEqual(viewController.getCurrentTimelineData().trackCount, 1)
@@ -313,7 +314,10 @@ final class ViewControllerTests: XCTestCase {
         // Move the track
         viewController.moveTrack(at: 0, to: CMTime(seconds: 2.0, preferredTimescale: 600))
         let movedTrack = viewController.getTrackAtIndex(0)
-        XCTAssertEqual(movedTrack?.positionInTimeline.safeSeconds, 2.0, accuracy: 0.01)
+        XCTAssertNotNil(movedTrack, "Track should exist after moving")
+        if let track = movedTrack {
+            XCTAssertEqual(track.positionInTimeline.safeSeconds, 2.0, accuracy: 0.01)
+        }
         
         // Update crop range
         viewController.updateTrackCropRange(
@@ -322,8 +326,11 @@ final class ViewControllerTests: XCTestCase {
             endTime: CMTime(seconds: 5.0, preferredTimescale: 600)
         )
         let croppedTrack = viewController.getTrackAtIndex(0)
-        XCTAssertEqual(croppedTrack?.cropStartTime.safeSeconds, 1.0, accuracy: 0.01)
-        XCTAssertEqual(croppedTrack?.cropEndTime.safeSeconds, 5.0, accuracy: 0.01)
+        XCTAssertNotNil(croppedTrack, "Track should exist after crop range update")
+        if let track = croppedTrack {
+            XCTAssertEqual(track.cropStartTime.safeSeconds, 1.0, accuracy: 0.01)
+            XCTAssertEqual(track.cropEndTime.safeSeconds, 5.0, accuracy: 0.01)
+        }
         
         // Clear timeline
         viewController.clearTimeline()
@@ -352,8 +359,10 @@ final class ViewControllerTests: XCTestCase {
         // Given - Add many tracks
         for i in 0..<100 {
             let asset = AVAsset(url: mockVideoURL)
+            let mockTrackInfo = VideoTrackInfo.createMockTrackInfo(asset: asset)
             let position = CMTime(seconds: Double(i), preferredTimescale: 600)
-            viewController.getCurrentTimelineData().addTrack(from: asset, at: position)
+            let track = TimelineTrack(trackInfo: mockTrackInfo, positionInTimeline: position)
+            viewController.getCurrentTimelineData().addTrack(track)
         }
         
         // When
@@ -366,8 +375,10 @@ final class ViewControllerTests: XCTestCase {
         // Verify we can access all tracks
         for i in 0..<100 {
             let track = viewController.getTrackAtIndex(i)
-            XCTAssertNotNil(track)
-            XCTAssertEqual(track?.positionInTimeline.safeSeconds, Double(i), accuracy: 0.01)
+            XCTAssertNotNil(track, "Track at index \(i) should exist")
+            if let track = track {
+                XCTAssertEqual(track.positionInTimeline.safeSeconds, Double(i), accuracy: 0.01)
+            }
         }
     }
     
@@ -380,9 +391,8 @@ final class ViewControllerTests: XCTestCase {
             
             // Add 50 tracks
             for i in 0..<50 {
-                let asset = AVAsset(url: mockVideoURL)
                 let position = CMTime(seconds: Double(i), preferredTimescale: 600)
-                viewController.getCurrentTimelineData().addTrack(from: asset, at: position)
+                addMockTrack(at: position)
             }
         }
     }
@@ -390,9 +400,8 @@ final class ViewControllerTests: XCTestCase {
     func testPerformanceTrackQueries() {
         // Given - Setup timeline with multiple tracks
         for i in 0..<20 {
-            let asset = AVAsset(url: mockVideoURL)
             let position = CMTime(seconds: Double(i), preferredTimescale: 600)
-            viewController.getCurrentTimelineData().addTrack(from: asset, at: position)
+            addMockTrack(at: position)
         }
         
         // When & Then - Measure query performance

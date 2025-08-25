@@ -28,7 +28,7 @@ jobs:
         xcode-version: '15.0'
         
     - name: Cache Derived Data
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/Library/Developer/Xcode/DerivedData
         key: ${{ runner.os }}-derived-data-${{ hashFiles('**/*.xcodeproj') }}
@@ -73,7 +73,7 @@ jobs:
         reporter: java-junit
         
     - name: Upload Build Artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: success()
       with:
         name: ios-build-${{ github.sha }}
@@ -127,7 +127,7 @@ jobs:
         format: 'JSON'
         
     - name: Upload Dependency Check Results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: dependency-check-report
         path: reports/
@@ -215,7 +215,7 @@ jobs:
         api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
         
     - name: Upload Release Artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: release-build-${{ github.event.release.tag_name }}
         path: |
