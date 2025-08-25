@@ -1,0 +1,269 @@
+name: iOS CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+env:
+  SCHEME: VEClaude
+  CONFIGURATION: Release
+  DESTINATION: 'platform=iOS Simulator,name=iPhone 15,OS=17.0'
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.0'
+        
+    - name: Cache Derived Data
+      uses: actions/cache@v3
+      with:
+        path: ~/Library/Developer/Xcode/DerivedData
+        key: ${{ runner.os }}-derived-data-${{ hashFiles('**/*.xcodeproj') }}
+        restore-keys: |
+          ${{ runner.os }}-derived-data-
+          
+    - name: Install Dependencies
+      run: |
+        # Add any package manager dependencies here
+        # pod install --repo-update (if using CocoaPods)
+        # carthage update --platform iOS (if using Carthage)
+        echo "No external dependencies to install"
+        
+    - name: Build Project
+      run: |
+        xcodebuild clean build \
+          -project VEClaude.xcodeproj \
+          -scheme $SCHEME \
+          -configuration $CONFIGURATION \
+          -destination "$DESTINATION" \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          ONLY_ACTIVE_ARCH=NO
+          
+    - name: Run Unit Tests
+      run: |
+        xcodebuild test \
+          -project VEClaude.xcodeproj \
+          -scheme $SCHEME \
+          -configuration Debug \
+          -destination "$DESTINATION" \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          ONLY_ACTIVE_ARCH=NO
+          
+    - name: Generate Test Report
+      uses: dorny/test-reporter@v1
+      if: success() || failure()
+      with:
+        name: iOS Test Results
+        path: build/reports/junit.xml
+        reporter: java-junit
+        
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v3
+      if: success()
+      with:
+        name: ios-build-${{ github.sha }}
+        path: |
+          build/Build/Products/Release-iphonesimulator/
+        retention-days: 7
+
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: macos-latest
+    needs: build-and-test
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.0'
+        
+    - name: Run SwiftLint
+      uses: norio-nomura/action-swiftlint@3.2.1
+      with:
+        args: --reporter github-actions-logging
+        
+    - name: Static Analysis
+      run: |
+        xcodebuild analyze \
+          -project VEClaude.xcodeproj \
+          -scheme $SCHEME \
+          -configuration $CONFIGURATION \
+          -destination "$DESTINATION" \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO
+
+  security-scan:
+    name: Security Scan
+    runs-on: macos-latest
+    needs: build-and-test
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Run Dependency Check
+      uses: dependency-check/Dependency-Check_Action@main
+      with:
+        project: 'VideoEditorClaude'
+        path: '.'
+        format: 'JSON'
+        
+    - name: Upload Dependency Check Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: dependency-check-report
+        path: reports/
+
+  performance-test:
+    name: Performance Testing
+    runs-on: macos-latest
+    needs: build-and-test
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.0'
+        
+    - name: Run Performance Tests
+      run: |
+        xcodebuild test \
+          -project VEClaude.xcodeproj \
+          -scheme $SCHEME \
+          -configuration Release \
+          -destination "$DESTINATION" \
+          -testPlan PerformanceTests \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO
+
+  build-for-distribution:
+    name: Build for Distribution
+    runs-on: macos-latest
+    needs: [build-and-test, code-quality, security-scan]
+    if: github.event_name == 'release'
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.0'
+        
+    - name: Import Code Signing Certificate
+      uses: apple-actions/import-codesign-certs@v2
+      with:
+        p12-file-base64: ${{ secrets.CERTIFICATES_P12 }}
+        p12-password: ${{ secrets.CERTIFICATES_PASSWORD }}
+        
+    - name: Install Provisioning Profile
+      uses: apple-actions/download-provisioning-profiles@v1
+      with:
+        bundle-id: 'com.asifnewaz.veclaude'
+        issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+        api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
+        api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+        
+    - name: Build Archive
+      run: |
+        xcodebuild archive \
+          -project VEClaude.xcodeproj \
+          -scheme $SCHEME \
+          -configuration $CONFIGURATION \
+          -destination 'generic/platform=iOS' \
+          -archivePath build/VEClaude.xcarchive \
+          CODE_SIGN_STYLE=Manual \
+          PROVISIONING_PROFILE_SPECIFIER="${{ secrets.PROVISIONING_PROFILE_NAME }}" \
+          CODE_SIGN_IDENTITY="iPhone Distribution"
+          
+    - name: Export IPA
+      run: |
+        xcodebuild -exportArchive \
+          -archivePath build/VEClaude.xcarchive \
+          -exportPath build \
+          -exportOptionsPlist ExportOptions.plist
+          
+    - name: Upload to App Store Connect
+      uses: apple-actions/upload-testflight-build@v1
+      with:
+        app-path: build/VEClaude.ipa
+        issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+        api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
+        api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+        
+    - name: Upload Release Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: release-build-${{ github.event.release.tag_name }}
+        path: |
+          build/VEClaude.ipa
+          build/VEClaude.xcarchive
+        retention-days: 30
+
+  deploy-documentation:
+    name: Deploy Documentation
+    runs-on: macos-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.0'
+        
+    - name: Generate Documentation
+      run: |
+        xcodebuild docbuild \
+          -project VEClaude.xcodeproj \
+          -scheme $SCHEME \
+          -destination "$DESTINATION"
+          
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./build/Documentation
+        
+  notify-slack:
+    name: Notify Slack
+    runs-on: ubuntu-latest
+    needs: [build-and-test, code-quality]
+    if: always()
+    
+    steps:
+    - name: Slack Notification
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        channel: '#ios-builds'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        fields: repo,message,commit,author,action,eventName,ref,workflow
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

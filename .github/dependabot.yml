@@ -1,0 +1,36 @@
+# Dependabot configuration for VideoEditorClaude
+
+version: 2
+updates:
+  # Enable version updates for Swift Package Manager
+  - package-ecosystem: "swift"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "Asifnewaz"
+    assignees:
+      - "Asifnewaz"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "Asifnewaz"
+    assignees:
+      - "Asifnewaz"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
