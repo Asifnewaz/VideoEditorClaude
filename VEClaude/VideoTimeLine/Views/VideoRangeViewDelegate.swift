@@ -24,6 +24,11 @@ class VideoRangeView: TimeLineRangeView {
     weak var delegate: VideoRangeViewDelegate?
     fileprivate lazy var displayTriggerMachine = DisplayTriggerMachine()
     
+    // Haptic feedback
+    private let boundaryFeedbackGenerator = UIImpactFeedbackGenerator(style: .medium)
+    private var previousLeftBoundaryState = false
+    private var previousRightBoundaryState = false
+    
     var contentHeight: CGFloat = 44
     /// Conent will be displayed inside the inset
     var contentInset: UIEdgeInsets = UIEdgeInsets(top: 2, left: 24, bottom: 2, right: 24) {
@@ -282,6 +287,10 @@ class VideoRangeView: TimeLineRangeView {
     
     @objc private func panEarAction(_ gesture: UIPanGestureRecognizer) {
         if gesture.state == .began {
+            // Prepare haptic feedback generator
+            boundaryFeedbackGenerator.prepare()
+            resetBoundaryStates()
+            
             if gesture.view == rightEar {
                 delegate?.videoRangeViewBeginUpdateRight(self)
             } else {
@@ -309,8 +318,9 @@ class VideoRangeView: TimeLineRangeView {
         }
         
         if gesture.state == .ended || gesture.state == .cancelled {
-            // Clean up auto scroll values
+            // Clean up auto scroll values and reset boundary states
             cleanUpAutoScrolValues()
+            resetBoundaryStates()
             
             if gesture.view == rightEar {
                 delegate?.videoRangeViewDidEndUpdateRightOffset(self)
@@ -377,7 +387,16 @@ class VideoRangeView: TimeLineRangeView {
         let offset = contentView.contentWidth - previousWidth
         invalidateIntrinsicContentSize()
         delegate?.videoRangeView(self, updateRightOffset: offset, auto: auto)
-        rightEar.imageView.isHighlighted = contentView.reachEnd() && !contentView.supportUnlimitTime
+        
+        // Check for right boundary and trigger haptic feedback
+        let currentRightBoundaryState = contentView.reachEnd() && !contentView.supportUnlimitTime
+        if currentRightBoundaryState && !previousRightBoundaryState {
+            // Just reached right boundary
+            triggerBoundaryHapticFeedback()
+        }
+        previousRightBoundaryState = currentRightBoundaryState
+        rightEar.imageView.isHighlighted = currentRightBoundaryState
+        
         changeTime(left: false)
         return offset
     }
@@ -393,7 +412,16 @@ class VideoRangeView: TimeLineRangeView {
         let offset = contentView.contentWidth - previousWidth
         invalidateIntrinsicContentSize()
         delegate?.videoRangeView(self, updateLeftOffset: -offset, auto: auto)
-        leftEar.imageView.isHighlighted = contentView.reachHead() && !contentView.supportUnlimitTime
+        
+        // Check for left boundary and trigger haptic feedback
+        let currentLeftBoundaryState = contentView.reachHead() && !contentView.supportUnlimitTime
+        if currentLeftBoundaryState && !previousLeftBoundaryState {
+            // Just reached left boundary
+            triggerBoundaryHapticFeedback()
+        }
+        previousLeftBoundaryState = currentLeftBoundaryState
+        leftEar.imageView.isHighlighted = currentLeftBoundaryState
+        
         changeTime(left: true)
         return offset
     }
@@ -402,6 +430,18 @@ class VideoRangeView: TimeLineRangeView {
         autoScrollSpeed = 0
         autoScrollType = .none
         displayTriggerMachine.pause()
+    }
+    
+    // MARK: - Haptic Feedback
+    
+    private func triggerBoundaryHapticFeedback() {
+        boundaryFeedbackGenerator.prepare()
+        boundaryFeedbackGenerator.impactOccurred()
+    }
+    
+    private func resetBoundaryStates() {
+        previousLeftBoundaryState = false
+        previousRightBoundaryState = false
     }
     
     // MARK: - Active & Inactive manage
