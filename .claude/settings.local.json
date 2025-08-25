@@ -11,7 +11,11 @@
       "Bash(git log:*)",
       "Bash(git restore:*)",
       "Bash(mkdir:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(git tag:*)",
+      "Bash(gh:*)",
+      "Bash(brew:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
