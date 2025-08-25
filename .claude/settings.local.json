@@ -16,7 +16,8 @@
       "Bash(gh:*)",
       "Bash(brew:*)",
       "Bash(git push:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

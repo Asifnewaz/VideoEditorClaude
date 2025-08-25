@@ -17,6 +17,7 @@ class TimeLineView: UIView {
     private(set) var centerLineView: UIView!
     private(set) var totalTimeLabel: UILabel!
     private(set) var rulerView: TimelineRulerView!
+    private(set) var stickerTimelineView: StickerTimelineView!
     
     private(set) var scrollContentHeightConstraint: NSLayoutConstraint!
     
@@ -98,6 +99,11 @@ class TimeLineView: UIView {
         totalTimeLabel.textColor = UIColor.white
         totalTimeLabel.font = UIFont.systemFont(ofSize: 16)
         
+        // Initialize sticker timeline view
+        stickerTimelineView = StickerTimelineView()
+        stickerTimelineView.widthPerSecond = widthPerSecond
+        addSubview(stickerTimelineView)
+        
         // Ruler view constraints (at the top of parent view)
         rulerView.translatesAutoresizingMaskIntoConstraints = false
         rulerView.topAnchor.constraint(equalTo: topAnchor).isActive = true
@@ -105,12 +111,12 @@ class TimeLineView: UIView {
         rulerView.rightAnchor.constraint(equalTo: contentView.rightAnchor, constant: -videoRangeViewEarWidth).isActive = true
         rulerView.heightAnchor.constraint(equalToConstant: 20).isActive = true
         
-        // ScrollView constraints (below ruler)
+        // ScrollView constraints (below ruler, above sticker timeline)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.topAnchor.constraint(equalTo: rulerView.bottomAnchor).isActive = true
         scrollView.leftAnchor.constraint(equalTo: leftAnchor).isActive = true
         scrollView.rightAnchor.constraint(equalTo: rightAnchor).isActive = true
-        scrollView.bottomAnchor.constraint(equalTo: bottomAnchor).isActive = true
+        scrollView.bottomAnchor.constraint(equalTo: stickerTimelineView.topAnchor, constant: -15).isActive = true
         
         contentView.translatesAutoresizingMaskIntoConstraints = false
         contentView.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor).isActive = true
@@ -126,10 +132,17 @@ class TimeLineView: UIView {
         videoListContentView.rightAnchor.constraint(equalTo: contentView.rightAnchor).isActive = true
         videoListContentView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor).isActive = true
         
+        // Sticker timeline view constraints (at bottom with 50px height)
+        stickerTimelineView.translatesAutoresizingMaskIntoConstraints = false
+        stickerTimelineView.leftAnchor.constraint(equalTo: leftAnchor).isActive = true
+        stickerTimelineView.rightAnchor.constraint(equalTo: rightAnchor).isActive = true
+        stickerTimelineView.bottomAnchor.constraint(equalTo: bottomAnchor).isActive = true
+        stickerTimelineView.heightAnchor.constraint(equalToConstant: 50).isActive = true
+        
         centerLineView.translatesAutoresizingMaskIntoConstraints = false
         centerLineView.centerXAnchor.constraint(equalTo: centerXAnchor).isActive = true
         centerLineView.topAnchor.constraint(equalTo: topAnchor).isActive = true
-        centerLineView.bottomAnchor.constraint(equalTo: bottomAnchor).isActive = true
+        centerLineView.bottomAnchor.constraint(equalTo: stickerTimelineView.topAnchor, constant: -15).isActive = true
         centerLineView.widthAnchor.constraint(equalToConstant: 1).isActive = true
         
         totalTimeLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -307,6 +320,17 @@ class TimeLineView: UIView {
         rangeViews.removeAll()
     }
     
+    // MARK: - Sticker Timeline Access
+    
+    func getStickerTimelineView() -> StickerTimelineView {
+        return stickerTimelineView
+    }
+    
+    func addSticker(at startTime: CMTime, duration: CMTime) {
+        let stickerView = StickerRangeView()
+        stickerTimelineView.addStickerView(stickerView, at: startTime, duration: duration)
+    }
+    
     
     fileprivate func timeDidChanged() {
         print("🟡 TimeLineView.timeDidChanged called")
@@ -365,6 +389,9 @@ class TimeLineView: UIView {
         // Update ruler with new duration
         print("🟡 About to call rulerView.updateDuration with: \(finalDuration)")
         rulerView.updateDuration(finalDuration)
+        
+        // Update sticker timeline duration
+        stickerTimelineView.updateDuration(finalDuration)
         print("🟡 TimeLineView.timeDidChanged completed")
     }
     
