@@ -132,7 +132,6 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     func clearTimeline() {
         trackItems.removeAll()
         timelineDataModel.clearAllTracks()
-        timelineView.removeAllRangeViews()
         timelineView.isHidden = true
         print("Timeline cleared")
     }
