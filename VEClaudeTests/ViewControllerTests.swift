@@ -313,7 +313,7 @@ final class ViewControllerTests: XCTestCase {
         // Move the track
         viewController.moveTrack(at: 0, to: CMTime(seconds: 2.0, preferredTimescale: 600))
         let movedTrack = viewController.getTrackAtIndex(0)
-        XCTAssertEqual(movedTrack?.positionInTimeline.seconds, 2.0, accuracy: 0.01)
+        XCTAssertEqual(movedTrack?.positionInTimeline.safeSeconds, 2.0, accuracy: 0.01)
         
         // Update crop range
         viewController.updateTrackCropRange(
@@ -322,8 +322,8 @@ final class ViewControllerTests: XCTestCase {
             endTime: CMTime(seconds: 5.0, preferredTimescale: 600)
         )
         let croppedTrack = viewController.getTrackAtIndex(0)
-        XCTAssertEqual(croppedTrack?.cropStartTime.seconds, 1.0, accuracy: 0.01)
-        XCTAssertEqual(croppedTrack?.cropEndTime.seconds, 5.0, accuracy: 0.01)
+        XCTAssertEqual(croppedTrack?.cropStartTime.safeSeconds, 1.0, accuracy: 0.01)
+        XCTAssertEqual(croppedTrack?.cropEndTime.safeSeconds, 5.0, accuracy: 0.01)
         
         // Clear timeline
         viewController.clearTimeline()
@@ -367,7 +367,7 @@ final class ViewControllerTests: XCTestCase {
         for i in 0..<100 {
             let track = viewController.getTrackAtIndex(i)
             XCTAssertNotNil(track)
-            XCTAssertEqual(track?.positionInTimeline.seconds, Double(i), accuracy: 0.01)
+            XCTAssertEqual(track?.positionInTimeline.safeSeconds, Double(i), accuracy: 0.01)
         }
     }
     

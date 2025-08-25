@@ -82,7 +82,7 @@ final class TimelineTrackTests: XCTestCase {
         XCTAssertEqual(track.cropStartTime, cropStartTime)
         XCTAssertEqual(track.cropEndTime, cropEndTime)
         XCTAssertEqual(track.positionInTimeline, position)
-        XCTAssertEqual(track.croppedDuration.seconds, 6.0, accuracy: 0.01)
+        XCTAssertEqual(track.croppedDuration.safeSeconds, 6.0, accuracy: 0.01)
     }
     
     // MARK: - Computed Properties Tests
@@ -102,7 +102,7 @@ final class TimelineTrackTests: XCTestCase {
         let duration = track.croppedDuration
         
         // Then
-        XCTAssertEqual(duration.seconds, 6.0, accuracy: 0.01)
+        XCTAssertEqual(duration.f64, 6.0, accuracy: 0.01)
     }
     
     func testEndTimeInTimeline() {
@@ -122,7 +122,7 @@ final class TimelineTrackTests: XCTestCase {
         
         // Then
         // Position (3s) + Cropped Duration (5s) = 8s
-        XCTAssertEqual(endTime.seconds, 8.0, accuracy: 0.01)
+        XCTAssertEqual(endTime.safeSeconds, 8.0, accuracy: 0.01)
     }
     
     func testIsValidWithValidTrack() {
@@ -175,7 +175,7 @@ final class TimelineTrackTests: XCTestCase {
         // Then
         XCTAssertEqual(track.cropStartTime, newStartTime)
         XCTAssertEqual(track.cropEndTime, newEndTime)
-        XCTAssertEqual(track.croppedDuration.seconds, 6.0, accuracy: 0.01)
+        XCTAssertEqual(track.croppedDuration.safeSeconds, 6.0, accuracy: 0.01)
     }
     
     func testUpdateCropRangeInvalidEndBeforeStart() {
@@ -309,7 +309,7 @@ final class TimelineTrackTests: XCTestCase {
         )
         
         // When & Then
-        XCTAssertEqual(track.croppedDuration.seconds, 0.033, accuracy: 0.001)
+        XCTAssertEqual(track.croppedDuration.safeSeconds, 0.033, accuracy: 0.001)
         XCTAssertTrue(track.isValid)
     }
     
@@ -366,11 +366,11 @@ final class TimelineTrackTests: XCTestCase {
         track.moveToPosition(CMTime(seconds: 5.0, preferredTimescale: 600))
         
         // Then
-        XCTAssertEqual(track.positionInTimeline.seconds, 5.0, accuracy: 0.01)
-        XCTAssertEqual(track.cropStartTime.seconds, 1.0, accuracy: 0.01)
-        XCTAssertEqual(track.cropEndTime.seconds, 8.0, accuracy: 0.01)
-        XCTAssertEqual(track.croppedDuration.seconds, 7.0, accuracy: 0.01)
-        XCTAssertEqual(track.endTimeInTimeline.seconds, 12.0, accuracy: 0.01) // 5 + 7
+        XCTAssertEqual(track.positionInTimeline.safeSeconds, 5.0, accuracy: 0.01)
+        XCTAssertEqual(track.cropStartTime.safeSeconds, 1.0, accuracy: 0.01)
+        XCTAssertEqual(track.cropEndTime.safeSeconds, 8.0, accuracy: 0.01)
+        XCTAssertEqual(track.croppedDuration.safeSeconds, 7.0, accuracy: 0.01)
+        XCTAssertEqual(track.endTimeInTimeline.safeSeconds, 12.0, accuracy: 0.01) // 5 + 7
         XCTAssertTrue(track.isValid)
     }
 }

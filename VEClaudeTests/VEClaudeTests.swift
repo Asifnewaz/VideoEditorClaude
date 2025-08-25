@@ -63,13 +63,13 @@ final class VEClaudeTests: XCTestCase {
         let time1 = CMTime(seconds: 2.0)
         let time2 = CMTime(seconds: 3.0)
         
-        XCTAssertEqual(time1.seconds, 2.0, accuracy: 0.001)
-        XCTAssertEqual(time2.seconds, 3.0, accuracy: 0.001)
+        XCTAssertEqual(time1.safeSeconds, 2.0, accuracy: 0.001)
+        XCTAssertEqual(time2.safeSeconds, 3.0, accuracy: 0.001)
         
         // Test arithmetic
         var result = time1
         result += time2
-        XCTAssertEqual(result.seconds, 5.0, accuracy: 0.001)
+        XCTAssertEqual(result.safeSeconds, 5.0, accuracy: 0.001)
         
         // Test comparisons
         XCTAssertTrue(time1 < time2)

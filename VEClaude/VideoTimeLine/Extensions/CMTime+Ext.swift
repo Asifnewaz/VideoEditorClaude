@@ -90,6 +90,11 @@ extension CMTime {
     var f64: Float64 {
         return CMTimeGetSeconds(self)
     }
+    
+    // Safe seconds property that never returns optional
+    var safeSeconds: Double {
+        return CMTimeGetSeconds(self)
+    }
 }
 
 func == (time: CMTime, seconds: Float64) -> Bool {

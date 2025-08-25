@@ -161,7 +161,7 @@ final class TimelineDataModelTests: XCTestCase {
         
         // Then
         let expectedDuration = CMTimeAdd(position2, track2.croppedDuration)
-        XCTAssertEqual(timelineDataModel.totalDuration.seconds, expectedDuration.seconds, accuracy: 0.1)
+        XCTAssertEqual(timelineDataModel.totalDuration.safeSeconds, expectedDuration.safeSeconds, accuracy: 0.1)
     }
     
     func testMoveTrack() {

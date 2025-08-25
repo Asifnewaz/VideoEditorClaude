@@ -20,7 +20,7 @@ final class CMTimeExtensionTests: XCTestCase {
         // Then
         XCTAssertEqual(time.value, 1200)
         XCTAssertEqual(time.timescale, 600)
-        XCTAssertEqual(time.seconds, 2.0, accuracy: 0.001)
+        XCTAssertEqual(time.safeSeconds, 2.0, accuracy: 0.001)
     }
     
     func testInitWithValueAndInt32Timescale() {
@@ -30,7 +30,7 @@ final class CMTimeExtensionTests: XCTestCase {
         // Then
         XCTAssertEqual(time.value, 1800)
         XCTAssertEqual(time.timescale, 600)
-        XCTAssertEqual(time.seconds, 3.0, accuracy: 0.001)
+        XCTAssertEqual(time.safeSeconds, 3.0, accuracy: 0.001)
     }
     
     func testInitWithFloat64Seconds() {
@@ -38,7 +38,7 @@ final class CMTimeExtensionTests: XCTestCase {
         let time = CMTime(seconds: 5.5, preferredTimeScale: 600)
         
         // Then
-        XCTAssertEqual(time.seconds, 5.5, accuracy: 0.001)
+        XCTAssertEqual(time.safeSeconds, 5.5, accuracy: 0.001)
         XCTAssertEqual(time.timescale, 600)
     }
     
@@ -47,7 +47,7 @@ final class CMTimeExtensionTests: XCTestCase {
         let time = CMTime(seconds: Float(2.5), preferredTimeScale: 600)
         
         // Then
-        XCTAssertEqual(time.seconds, 2.5, accuracy: 0.001)
+        XCTAssertEqual(time.safeSeconds, 2.5, accuracy: 0.001)
         XCTAssertEqual(time.timescale, 600)
     }
     
@@ -56,7 +56,7 @@ final class CMTimeExtensionTests: XCTestCase {
         let time = CMTime(seconds: 1.0)
         
         // Then
-        XCTAssertEqual(time.seconds, 1.0, accuracy: 0.001)
+        XCTAssertEqual(time.safeSeconds, 1.0, accuracy: 0.001)
         XCTAssertEqual(time.timescale, 600) // Default timescale
     }
     
@@ -70,7 +70,7 @@ final class CMTimeExtensionTests: XCTestCase {
         let convertedTime = originalTime.cb_time(preferredTimeScale: 600)
         
         // Then
-        XCTAssertEqual(convertedTime.seconds, originalTime.seconds, accuracy: 0.001)
+        XCTAssertEqual(convertedTime.safeSeconds, originalTime.safeSeconds, accuracy: 0.001)
         XCTAssertEqual(convertedTime.timescale, 600)
     }
     
@@ -82,7 +82,7 @@ final class CMTimeExtensionTests: XCTestCase {
         let convertedTime = originalTime.cb_time()
         
         // Then
-        XCTAssertEqual(convertedTime.seconds, originalTime.seconds, accuracy: 0.001)
+        XCTAssertEqual(convertedTime.safeSeconds, originalTime.safeSeconds, accuracy: 0.001)
         XCTAssertEqual(convertedTime.timescale, 600)
     }
     
@@ -97,8 +97,8 @@ final class CMTimeExtensionTests: XCTestCase {
         let result = time1 += time2
         
         // Then
-        XCTAssertEqual(time1.seconds, 5.0, accuracy: 0.001)
-        XCTAssertEqual(result.seconds, 5.0, accuracy: 0.001)
+        XCTAssertEqual(time1.safeSeconds, 5.0, accuracy: 0.001)
+        XCTAssertEqual(result.safeSeconds, 5.0, accuracy: 0.001)
     }
     
     // MARK: - Subtraction Tests
@@ -112,8 +112,8 @@ final class CMTimeExtensionTests: XCTestCase {
         let result = time1 -= time2
         
         // Then
-        XCTAssertEqual(time1.seconds, 3.0, accuracy: 0.001)
-        XCTAssertEqual(result.seconds, 3.0, accuracy: 0.001)
+        XCTAssertEqual(time1.safeSeconds, 3.0, accuracy: 0.001)
+        XCTAssertEqual(result.safeSeconds, 3.0, accuracy: 0.001)
     }
     
     // MARK: - Multiplication Tests
@@ -127,7 +127,7 @@ final class CMTimeExtensionTests: XCTestCase {
         let result = time * multiplier
         
         // Then
-        XCTAssertEqual(result.seconds, 7.5, accuracy: 0.001)
+        XCTAssertEqual(result.safeSeconds, 7.5, accuracy: 0.001)
     }
     
     func testMultiplicationByInt32Commutative() {
@@ -140,8 +140,8 @@ final class CMTimeExtensionTests: XCTestCase {
         let result2 = multiplier * time
         
         // Then
-        XCTAssertEqual(result1.seconds, result2.seconds, accuracy: 0.001)
-        XCTAssertEqual(result1.seconds, 8.0, accuracy: 0.001)
+        XCTAssertEqual(result1.safeSeconds, result2.safeSeconds, accuracy: 0.001)
+        XCTAssertEqual(result1.safeSeconds, 8.0, accuracy: 0.001)
     }
     
     func testMultiplicationByFloat64() {
@@ -153,7 +153,7 @@ final class CMTimeExtensionTests: XCTestCase {
         let result = time * multiplier
         
         // Then
-        XCTAssertEqual(result.seconds, 7.5, accuracy: 0.001)
+        XCTAssertEqual(result.safeSeconds, 7.5, accuracy: 0.001)
     }
     
     func testMultiplicationByFloat() {
@@ -165,7 +165,7 @@ final class CMTimeExtensionTests: XCTestCase {
         let result = time * multiplier
         
         // Then
-        XCTAssertEqual(result.seconds, 6.0, accuracy: 0.001)
+        XCTAssertEqual(result.safeSeconds, 6.0, accuracy: 0.001)
     }
     
     func testMultiplicationAssignmentInt32() {
@@ -177,8 +177,8 @@ final class CMTimeExtensionTests: XCTestCase {
         let result = time *= multiplier
         
         // Then
-        XCTAssertEqual(time.seconds, 6.0, accuracy: 0.001)
-        XCTAssertEqual(result.seconds, 6.0, accuracy: 0.001)
+        XCTAssertEqual(time.safeSeconds, 6.0, accuracy: 0.001)
+        XCTAssertEqual(result.safeSeconds, 6.0, accuracy: 0.001)
     }
     
     func testMultiplicationAssignmentFloat64() {
@@ -190,8 +190,8 @@ final class CMTimeExtensionTests: XCTestCase {
         let result = time *= multiplier
         
         // Then
-        XCTAssertEqual(time.seconds, 5.0, accuracy: 0.001)
-        XCTAssertEqual(result.seconds, 5.0, accuracy: 0.001)
+        XCTAssertEqual(time.safeSeconds, 5.0, accuracy: 0.001)
+        XCTAssertEqual(result.safeSeconds, 5.0, accuracy: 0.001)
     }
     
     func testMultiplicationAssignmentFloat() {
@@ -203,8 +203,8 @@ final class CMTimeExtensionTests: XCTestCase {
         let result = time *= multiplier
         
         // Then
-        XCTAssertEqual(time.seconds, 6.0, accuracy: 0.001)
-        XCTAssertEqual(result.seconds, 6.0, accuracy: 0.001)
+        XCTAssertEqual(time.safeSeconds, 6.0, accuracy: 0.001)
+        XCTAssertEqual(result.safeSeconds, 6.0, accuracy: 0.001)
     }
     
     // MARK: - Division Tests
@@ -218,7 +218,7 @@ final class CMTimeExtensionTests: XCTestCase {
         let result = time / divisor
         
         // Then
-        XCTAssertEqual(result.seconds, 3.0, accuracy: 0.001)
+        XCTAssertEqual(result.safeSeconds, 3.0, accuracy: 0.001)
     }
     
     func testDivisionAssignment() {
@@ -230,8 +230,8 @@ final class CMTimeExtensionTests: XCTestCase {
         let result = time /= divisor
         
         // Then
-        XCTAssertEqual(time.seconds, 3.0, accuracy: 0.001)
-        XCTAssertEqual(result.seconds, 3.0, accuracy: 0.001)
+        XCTAssertEqual(time.safeSeconds, 3.0, accuracy: 0.001)
+        XCTAssertEqual(result.safeSeconds, 3.0, accuracy: 0.001)
     }
     
     // MARK: - Conversion Properties Tests

@@ -185,8 +185,8 @@ final class RangeContentViewTests: XCTestCase {
         rangeContentView.expand(contentWidth: 20, left: true)
         
         // Then - Start time should decrease by 2 seconds
-        XCTAssertEqual(rangeContentView.startTime.seconds, 3.0, accuracy: 0.01)
-        XCTAssertEqual(rangeContentView.endTime.seconds, 15.0, accuracy: 0.01)
+        XCTAssertEqual(rangeContentView.startTime.safeSeconds, 3.0, accuracy: 0.01)
+        XCTAssertEqual(rangeContentView.endTime.safeSeconds, 15.0, accuracy: 0.01)
     }
     
     func testExpandRightWithUnlimitTime() {
@@ -201,8 +201,8 @@ final class RangeContentViewTests: XCTestCase {
         rangeContentView.expand(contentWidth: 30, left: false)
         
         // Then - End time should increase by 3 seconds
-        XCTAssertEqual(rangeContentView.startTime.seconds, 5.0, accuracy: 0.01)
-        XCTAssertEqual(rangeContentView.endTime.seconds, 18.0, accuracy: 0.01)
+        XCTAssertEqual(rangeContentView.startTime.safeSeconds, 5.0, accuracy: 0.01)
+        XCTAssertEqual(rangeContentView.endTime.safeSeconds, 18.0, accuracy: 0.01)
     }
     
     func testExpandLeftWithLimits() {
@@ -217,8 +217,8 @@ final class RangeContentViewTests: XCTestCase {
         rangeContentView.expand(contentWidth: 30, left: true)
         
         // Then - Start time should not go below zero
-        XCTAssertEqual(rangeContentView.startTime.seconds, 0.0, accuracy: 0.01)
-        XCTAssertEqual(rangeContentView.endTime.seconds, 8.0, accuracy: 0.01)
+        XCTAssertEqual(rangeContentView.startTime.safeSeconds, 0.0, accuracy: 0.01)
+        XCTAssertEqual(rangeContentView.endTime.safeSeconds, 8.0, accuracy: 0.01)
     }
     
     func testExpandRightWithLimits() {
@@ -233,8 +233,8 @@ final class RangeContentViewTests: XCTestCase {
         rangeContentView.expand(contentWidth: 30, left: false)
         
         // Then - End time should not exceed max duration
-        XCTAssertEqual(rangeContentView.startTime.seconds, 2.0, accuracy: 0.01)
-        XCTAssertEqual(rangeContentView.endTime.seconds, 10.0, accuracy: 0.01)
+        XCTAssertEqual(rangeContentView.startTime.safeSeconds, 2.0, accuracy: 0.01)
+        XCTAssertEqual(rangeContentView.endTime.safeSeconds, 10.0, accuracy: 0.01)
     }
     
     func testExpandRespectingMinDuration() {
@@ -249,7 +249,7 @@ final class RangeContentViewTests: XCTestCase {
         rangeContentView.expand(contentWidth: 30, left: true)
         
         // Then - Should respect min duration
-        let actualDuration = rangeContentView.endTime.seconds - rangeContentView.startTime.seconds
+        let actualDuration = rangeContentView.endTime.safeSeconds - rangeContentView.startTime.safeSeconds
         XCTAssertGreaterThanOrEqual(actualDuration, 3.0)
     }
     
@@ -266,7 +266,7 @@ final class RangeContentViewTests: XCTestCase {
         
         // Then - Should reset start time to zero and adjust end time
         XCTAssertEqual(rangeContentView.startTime, CMTime.zero)
-        XCTAssertEqual(rangeContentView.endTime.seconds, 10.0, accuracy: 0.01) // 15 - 5 = 10
+        XCTAssertEqual(rangeContentView.endTime.safeSeconds, 10.0, accuracy: 0.01) // 15 - 5 = 10
     }
     
     func testEndExpandWithoutUnlimitTime() {
@@ -279,8 +279,8 @@ final class RangeContentViewTests: XCTestCase {
         rangeContentView.endExpand()
         
         // Then - Should not change anything
-        XCTAssertEqual(rangeContentView.startTime.seconds, 5.0, accuracy: 0.01)
-        XCTAssertEqual(rangeContentView.endTime.seconds, 15.0, accuracy: 0.01)
+        XCTAssertEqual(rangeContentView.startTime.safeSeconds, 5.0, accuracy: 0.01)
+        XCTAssertEqual(rangeContentView.endTime.safeSeconds, 15.0, accuracy: 0.01)
     }
     
     // MARK: - Width Per Second Tests
