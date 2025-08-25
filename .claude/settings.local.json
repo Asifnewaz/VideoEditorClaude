@@ -9,7 +9,9 @@
       "Bash(gh repo create:*)",
       "Bash(git config:*)",
       "Bash(git log:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)"
     ],
     "deny": [],
     "ask": []
