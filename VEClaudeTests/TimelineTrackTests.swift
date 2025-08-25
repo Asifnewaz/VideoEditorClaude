@@ -30,15 +30,10 @@ final class TimelineTrackTests: XCTestCase {
         let videoURL = URL(fileURLWithPath: documentsPath).appendingPathComponent("test.mp4")
         let mockAsset = AVAsset(url: videoURL)
         
-        return VideoTrackInfo(
-            trackID: 1,
-            asset: mockAsset,
-            naturalSize: CGSize(width: 1920, height: 1080),
-            preferredTransform: .identity,
-            originalDuration: CMTime(seconds: 10.0, preferredTimescale: 600),
-            frameRate: 30.0,
-            mediaType: .video
-        )
+        // Create a mock AVAssetTrack for testing
+        // Since we can't create AVAssetTrack directly, we'll create VideoTrackInfo properties manually
+        // by extending VideoTrackInfo with a test initializer
+        return VideoTrackInfo.createMockTrackInfo(asset: mockAsset)
     }
     
     // MARK: - Initialization Tests

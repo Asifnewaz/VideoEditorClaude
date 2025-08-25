@@ -46,19 +46,8 @@ final class TimelineDataModelTests: XCTestCase {
     }
     
     private func createMockVideoTrackInfo() -> VideoTrackInfo {
-        let naturalSize = CGSize(width: 1920, height: 1080)
-        let duration = CMTime(seconds: 10.0, preferredTimescale: 600)
-        
-        // Create a mock track info with known values
-        return VideoTrackInfo(
-            trackID: 1,
-            asset: mockAsset,
-            naturalSize: naturalSize,
-            preferredTransform: .identity,
-            originalDuration: duration,
-            frameRate: 30.0,
-            mediaType: .video
-        )
+        // Use the test helper method from VideoTrackInfo
+        return VideoTrackInfo.createMockTrackInfo(asset: mockAsset)
     }
     
     // MARK: - Timeline Data Model Tests

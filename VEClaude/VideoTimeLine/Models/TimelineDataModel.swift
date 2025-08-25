@@ -27,6 +27,31 @@ struct VideoTrackInfo {
         self.frameRate = avAssetTrack.nominalFrameRate
         self.mediaType = avAssetTrack.mediaType
     }
+    
+    // MARK: - Test Helper
+    #if DEBUG
+    static func createMockTrackInfo(asset: AVAsset) -> VideoTrackInfo {
+        return VideoTrackInfo(
+            trackID: 1,
+            asset: asset,
+            naturalSize: CGSize(width: 1920, height: 1080),
+            preferredTransform: .identity,
+            originalDuration: CMTime(seconds: 10.0, preferredTimescale: 600),
+            frameRate: 30.0,
+            mediaType: .video
+        )
+    }
+    
+    private init(trackID: CMPersistentTrackID, asset: AVAsset, naturalSize: CGSize, preferredTransform: CGAffineTransform, originalDuration: CMTime, frameRate: Float, mediaType: AVMediaType) {
+        self.trackID = trackID
+        self.asset = asset
+        self.naturalSize = naturalSize
+        self.preferredTransform = preferredTransform
+        self.originalDuration = originalDuration
+        self.frameRate = frameRate
+        self.mediaType = mediaType
+    }
+    #endif
 }
 
 // MARK: - Timeline Track
