@@ -11,7 +11,7 @@ on:
 env:
   SCHEME: VEClaude
   CONFIGURATION: Release
-  DESTINATION: 'platform=iOS Simulator,name=iPhone 15,OS=latest'
+  DESTINATION: 'generic/platform=iOS Simulator'
 
 jobs:
   build-and-test:
@@ -44,6 +44,11 @@ jobs:
         # carthage update --platform iOS (if using Carthage)
         echo "Dependencies installed"
         
+    - name: List Available Simulators
+      run: |
+        echo "Available iOS Simulators:"
+        xcrun simctl list devices available
+        
     - name: Build Project
       run: |
         xcodebuild clean build \
@@ -65,11 +70,18 @@ jobs:
           -resultBundlePath TestResults \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
-          ONLY_ACTIVE_ARCH=NO | xcpretty -r junit -o test-results.xml
+          ONLY_ACTIVE_ARCH=NO | tee xcodebuild.log | xcpretty -r junit -o test-results.xml
           
+    - name: List Test Results Directory
+      run: |
+        echo "Current directory contents:"
+        ls -la
+        echo "Looking for test result files:"
+        find . -name "*.xml" -o -name "*test*" -type f | head -10
+        
     - name: Generate Test Report
       uses: dorny/test-reporter@v1
-      if: success() || failure()
+      if: (success() || failure()) && hashFiles('test-results.xml') != ''
       with:
         name: iOS Test Results
         path: test-results.xml
@@ -161,7 +173,7 @@ jobs:
           -scheme $SCHEME \
           -configuration Release \
           -destination "$DESTINATION" \
-          -only-testing:VEClaudeTests/testPerformance \
+          -only-testing:VEClaudeTests \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO | xcpretty
 
