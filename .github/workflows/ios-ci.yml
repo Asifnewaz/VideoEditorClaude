@@ -49,19 +49,19 @@ jobs:
         echo "Available iOS Simulators:"
         xcrun simctl list devices available
         
-        # Find the first available iOS simulator
-        SIMULATOR_ID=$(xcrun simctl list devices available iOS | grep -E "iPhone.*\(" | head -1 | sed -E 's/.*\(([^)]+)\).*/\1/')
-        if [ -z "$SIMULATOR_ID" ]; then
-          # Fallback: try to find any iPhone simulator
-          SIMULATOR_ID=$(xcrun simctl list devices | grep iPhone | grep -v unavailable | head -1 | sed -E 's/.*\(([^)]+)\).*/\1/')
-        fi
+        # Try common iPhone simulator names in order of preference
+        for iPhone in "iPhone 15" "iPhone 14" "iPhone 13" "iPhone 12" "iPhone SE (3rd generation)" "iPhone 11"; do
+          if xcrun simctl list devices | grep -q "$iPhone"; then
+            echo "Found iPhone simulator: $iPhone"
+            DESTINATION="platform=iOS Simulator,name=$iPhone"
+            break
+          fi
+        done
         
-        if [ -z "$SIMULATOR_ID" ]; then
-          echo "No iPhone simulators found, using generic iOS Simulator"
+        # If no specific iPhone found, use generic fallback
+        if [ -z "$DESTINATION" ]; then
+          echo "No common iPhone simulators found, using fallback"
           DESTINATION="platform=iOS Simulator,name=iPhone 14"
-        else
-          echo "Using simulator ID: $SIMULATOR_ID"
-          DESTINATION="platform=iOS Simulator,id=$SIMULATOR_ID"
         fi
         
         echo "destination=$DESTINATION" >> $GITHUB_OUTPUT
@@ -187,16 +187,19 @@ jobs:
     - name: Find Available iOS Simulator
       id: perf-simulator
       run: |
-        # Find the first available iOS simulator
-        SIMULATOR_ID=$(xcrun simctl list devices available iOS | grep -E "iPhone.*\(" | head -1 | sed -E 's/.*\(([^)]+)\).*/\1/')
-        if [ -z "$SIMULATOR_ID" ]; then
-          SIMULATOR_ID=$(xcrun simctl list devices | grep iPhone | grep -v unavailable | head -1 | sed -E 's/.*\(([^)]+)\).*/\1/')
-        fi
+        # Try common iPhone simulator names in order of preference
+        for iPhone in "iPhone 15" "iPhone 14" "iPhone 13" "iPhone 12" "iPhone SE (3rd generation)" "iPhone 11"; do
+          if xcrun simctl list devices | grep -q "$iPhone"; then
+            echo "Found iPhone simulator: $iPhone"
+            DESTINATION="platform=iOS Simulator,name=$iPhone"
+            break
+          fi
+        done
         
-        if [ -z "$SIMULATOR_ID" ]; then
+        # If no specific iPhone found, use generic fallback
+        if [ -z "$DESTINATION" ]; then
+          echo "No common iPhone simulators found, using fallback"
           DESTINATION="platform=iOS Simulator,name=iPhone 14"
-        else
-          DESTINATION="platform=iOS Simulator,id=$SIMULATOR_ID"
         fi
         
         echo "destination=$DESTINATION" >> $GITHUB_OUTPUT
