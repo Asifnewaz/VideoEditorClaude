@@ -11,7 +11,6 @@ on:
 env:
   SCHEME: VEClaude
   CONFIGURATION: Release
-  DESTINATION: 'generic/platform=iOS Simulator'
 
 jobs:
   build-and-test:
@@ -44,10 +43,29 @@ jobs:
         # carthage update --platform iOS (if using Carthage)
         echo "Dependencies installed"
         
-    - name: List Available Simulators
+    - name: Find Available iOS Simulator
+      id: simulator
       run: |
         echo "Available iOS Simulators:"
         xcrun simctl list devices available
+        
+        # Find the first available iOS simulator
+        SIMULATOR_ID=$(xcrun simctl list devices available iOS | grep -E "iPhone.*\(" | head -1 | sed -E 's/.*\(([^)]+)\).*/\1/')
+        if [ -z "$SIMULATOR_ID" ]; then
+          # Fallback: try to find any iPhone simulator
+          SIMULATOR_ID=$(xcrun simctl list devices | grep iPhone | grep -v unavailable | head -1 | sed -E 's/.*\(([^)]+)\).*/\1/')
+        fi
+        
+        if [ -z "$SIMULATOR_ID" ]; then
+          echo "No iPhone simulators found, using generic iOS Simulator"
+          DESTINATION="platform=iOS Simulator,name=iPhone 14"
+        else
+          echo "Using simulator ID: $SIMULATOR_ID"
+          DESTINATION="platform=iOS Simulator,id=$SIMULATOR_ID"
+        fi
+        
+        echo "destination=$DESTINATION" >> $GITHUB_OUTPUT
+        echo "Final destination: $DESTINATION"
         
     - name: Build Project
       run: |
@@ -55,7 +73,7 @@ jobs:
           -project VEClaude.xcodeproj \
           -scheme $SCHEME \
           -configuration $CONFIGURATION \
-          -destination "$DESTINATION" \
+          -destination "${{ steps.simulator.outputs.destination }}" \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           ONLY_ACTIVE_ARCH=NO
@@ -66,7 +84,7 @@ jobs:
           -project VEClaude.xcodeproj \
           -scheme $SCHEME \
           -configuration Debug \
-          -destination "$DESTINATION" \
+          -destination "${{ steps.simulator.outputs.destination }}" \
           -resultBundlePath TestResults \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
@@ -165,6 +183,24 @@ jobs:
         
     - name: Install xcpretty
       run: gem install xcpretty
+      
+    - name: Find Available iOS Simulator
+      id: perf-simulator
+      run: |
+        # Find the first available iOS simulator
+        SIMULATOR_ID=$(xcrun simctl list devices available iOS | grep -E "iPhone.*\(" | head -1 | sed -E 's/.*\(([^)]+)\).*/\1/')
+        if [ -z "$SIMULATOR_ID" ]; then
+          SIMULATOR_ID=$(xcrun simctl list devices | grep iPhone | grep -v unavailable | head -1 | sed -E 's/.*\(([^)]+)\).*/\1/')
+        fi
+        
+        if [ -z "$SIMULATOR_ID" ]; then
+          DESTINATION="platform=iOS Simulator,name=iPhone 14"
+        else
+          DESTINATION="platform=iOS Simulator,id=$SIMULATOR_ID"
+        fi
+        
+        echo "destination=$DESTINATION" >> $GITHUB_OUTPUT
+        echo "Performance test destination: $DESTINATION"
         
     - name: Run Performance Tests
       run: |
@@ -172,7 +208,7 @@ jobs:
           -project VEClaude.xcodeproj \
           -scheme $SCHEME \
           -configuration Release \
-          -destination "$DESTINATION" \
+          -destination "${{ steps.perf-simulator.outputs.destination }}" \
           -only-testing:VEClaudeTests \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO | xcpretty
