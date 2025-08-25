@@ -38,6 +38,8 @@ jobs:
       run: |
         # Install xcpretty for better test output formatting
         gem install xcpretty
+        # Install bc for math calculations in coverage check
+        brew install bc
         # Add any package manager dependencies here
         # pod install --repo-update (if using CocoaPods)
         # carthage update --platform iOS (if using Carthage)
@@ -86,6 +88,7 @@ jobs:
           -configuration Debug \
           -destination "${{ steps.simulator.outputs.destination }}" \
           -resultBundlePath TestResults \
+          -enableCodeCoverage YES \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           ONLY_ACTIVE_ARCH=NO | tee xcodebuild.log | xcpretty -r junit -o test-results.xml
@@ -104,6 +107,95 @@ jobs:
         name: iOS Test Results
         path: test-results.xml
         reporter: java-junit
+        
+    - name: Generate Code Coverage Report
+      run: |
+        echo "Generating code coverage report..."
+        # Find the coverage file
+        COVERAGE_FILE=$(find TestResults -name "*.xccovreport" | head -1)
+        if [ -n "$COVERAGE_FILE" ]; then
+          echo "Found coverage report: $COVERAGE_FILE"
+          
+          # Generate coverage summary
+          xcrun xccov view --report --only-targets "$COVERAGE_FILE" > coverage-summary.txt
+          
+          # Extract overall coverage percentage
+          COVERAGE_PERCENT=$(xcrun xccov view --report --only-targets "$COVERAGE_FILE" | grep "VEClaude.app" | awk '{print $NF}' | sed 's/%//')
+          echo "COVERAGE_PERCENT=$COVERAGE_PERCENT" >> $GITHUB_ENV
+          
+          echo "Overall code coverage: ${COVERAGE_PERCENT}%"
+          echo "Coverage report generated successfully"
+          
+          # Display coverage summary
+          cat coverage-summary.txt
+        else
+          echo "No coverage report found"
+          echo "COVERAGE_PERCENT=0" >> $GITHUB_ENV
+        fi
+        
+    - name: Check Code Coverage Threshold
+      run: |
+        MINIMUM_COVERAGE=70
+        CURRENT_COVERAGE=${COVERAGE_PERCENT:-0}
+        
+        echo "Current coverage: ${CURRENT_COVERAGE}%"
+        echo "Minimum required: ${MINIMUM_COVERAGE}%"
+        
+        # Save coverage info for PR comment
+        echo "CURRENT_COVERAGE=$CURRENT_COVERAGE" >> $GITHUB_ENV
+        echo "MINIMUM_COVERAGE=$MINIMUM_COVERAGE" >> $GITHUB_ENV
+        
+        if (( $(echo "$CURRENT_COVERAGE < $MINIMUM_COVERAGE" | bc -l) )); then
+          echo "❌ Code coverage ($CURRENT_COVERAGE%) is below minimum threshold ($MINIMUM_COVERAGE%)"
+          echo "Please add tests to improve coverage before merging."
+          echo "COVERAGE_FAILED=true" >> $GITHUB_ENV
+          exit 1
+        else
+          echo "✅ Code coverage ($CURRENT_COVERAGE%) meets minimum threshold ($MINIMUM_COVERAGE%)"
+          echo "COVERAGE_FAILED=false" >> $GITHUB_ENV
+        fi
+        
+    - name: Comment Coverage Result on PR
+      uses: actions/github-script@v7
+      if: github.event_name == 'pull_request' && always()
+      with:
+        script: |
+          const coverage = process.env.CURRENT_COVERAGE || '0';
+          const minimum = process.env.MINIMUM_COVERAGE || '70';
+          const failed = process.env.COVERAGE_FAILED === 'true';
+          
+          const emoji = failed ? '❌' : '✅';
+          const status = failed ? 'Below Threshold' : 'Meets Threshold';
+          
+          const body = `## ${emoji} Code Coverage Report
+          
+          **Current Coverage:** ${coverage}%
+          **Minimum Required:** ${minimum}%
+          **Status:** ${status}
+          
+          ${failed ? 
+            '⚠️ **Action Required:** Please add tests to improve code coverage before merging.' : 
+            '🎉 Great job! Your code coverage meets the minimum threshold.'
+          }
+          
+          📊 [View detailed coverage report in build artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: body
+          });
+        
+    - name: Upload Coverage Report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: coverage-report-${{ github.sha }}
+        path: |
+          coverage-summary.txt
+          TestResults/
+        retention-days: 30
         
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
