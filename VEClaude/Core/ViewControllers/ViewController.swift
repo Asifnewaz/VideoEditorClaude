@@ -13,10 +13,18 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
 
     private var timelineView: TimeLineView!
     private var trackItems: [AssetTrackItem] = []
+    
+    // Timeline Data Model
+    private let timelineDataModel = TimelineDataModel()
 
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+        setupTimelineDataModelObserver()
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
     
     private func setupUI() {
@@ -90,14 +98,19 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         let trackItem = AssetTrackItem(resource: asset)
         trackItem.assetType = .video
         
-        // Add to trackItems array
+        // Add to trackItems array (for existing timeline view)
         trackItems.append(trackItem)
+        
+        // Add to new data model
+        let currentPosition = timelineDataModel.totalDuration
+        timelineDataModel.addTrack(from: asset, at: currentPosition)
         
         // Show timeline and reload with track items
         timelineView.isHidden = false
         timelineView.reload(with: trackItems)
         
         print("Added video to timeline: duration = \(asset.duration.seconds)s, total videos: \(trackItems.count)")
+        print("Timeline data model: \(timelineDataModel.description)")
     }
     
     // MARK: - Helper Methods
@@ -118,9 +131,75 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     
     func clearTimeline() {
         trackItems.removeAll()
+        timelineDataModel.clearAllTracks()
         timelineView.removeAllRangeViews()
         timelineView.isHidden = true
         print("Timeline cleared")
+    }
+    
+    // MARK: - Timeline Data Model Integration
+    
+    private func setupTimelineDataModelObserver() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(timelineDataModelChanged(_:)),
+            name: TimelineDataModel.dataChangedNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func timelineDataModelChanged(_ notification: Notification) {
+        guard let dataModel = notification.object as? TimelineDataModel else { return }
+        
+        print("Timeline data model updated:")
+        print("- Total Duration: \(dataModel.totalDuration.seconds)s")
+        print("- Track Count: \(dataModel.trackCount)")
+        print("- Is Empty: \(dataModel.isEmpty)")
+        
+        // Update UI or perform other actions based on data model changes
+        updateUIFromDataModel(dataModel)
+    }
+    
+    private func updateUIFromDataModel(_ dataModel: TimelineDataModel) {
+        // Example: Update timeline view based on data model
+        // You can access all track information here
+        
+        for (index, track) in dataModel.tracks.enumerated() {
+            print("Track \(index):")
+            print("  - Position: \(track.positionInTimeline.seconds)s")
+            print("  - Crop Range: \(track.cropStartTime.seconds)s - \(track.cropEndTime.seconds)s")
+            print("  - Cropped Duration: \(track.croppedDuration.seconds)s")
+            print("  - Original Duration: \(track.trackInfo.originalDuration.seconds)s")
+            print("  - Natural Size: \(track.trackInfo.naturalSize)")
+        }
+    }
+    
+    // MARK: - Data Model Access Methods
+    
+    func getCurrentTimelineData() -> TimelineDataModel {
+        return timelineDataModel
+    }
+    
+    func getTrackAtIndex(_ index: Int) -> TimelineTrack? {
+        return timelineDataModel.getTrack(at: index)
+    }
+    
+    func getTracksAtTime(_ time: CMTime) -> [TimelineTrack] {
+        return timelineDataModel.getTracksAtTime(time)
+    }
+    
+    func updateTrackCropRange(trackIndex: Int, startTime: CMTime, endTime: CMTime) {
+        guard let track = timelineDataModel.getTrack(at: trackIndex) else { return }
+        timelineDataModel.updateTrackCropRange(trackId: track.id, startTime: startTime, endTime: endTime)
+    }
+    
+    func moveTrack(at index: Int, to position: CMTime) {
+        guard let track = timelineDataModel.getTrack(at: index) else { return }
+        timelineDataModel.moveTrack(withId: track.id, to: position)
+    }
+    
+    func validateCurrentTimeline() -> [String] {
+        return timelineDataModel.validateTimeline()
     }
 }
 
