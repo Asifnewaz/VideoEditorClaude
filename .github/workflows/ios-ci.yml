@@ -330,7 +330,7 @@ jobs:
         p12-password: ${{ secrets.CERTIFICATES_PASSWORD }}
         
     - name: Install Provisioning Profile
-      uses: apple-actions/download-provisioning-profiles@v1
+      uses: apple-actions/download-provisioning-profiles@v4
       with:
         bundle-id: 'com.asifnewaz.veclaude'
         issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
