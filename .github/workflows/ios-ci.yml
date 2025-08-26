@@ -19,7 +19,7 @@ jobs:
     
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
@@ -213,7 +213,7 @@ jobs:
     
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
@@ -243,7 +243,7 @@ jobs:
     
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       
     - name: Run Dependency Check
       uses: dependency-check/Dependency-Check_Action@main
@@ -266,7 +266,7 @@ jobs:
     
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
@@ -316,7 +316,7 @@ jobs:
     
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
@@ -381,7 +381,7 @@ jobs:
     
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
