@@ -36,6 +36,15 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         videoPickerButton.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
         videoPickerButton.addTarget(self, action: #selector(selectVideoButtonTapped), for: .touchUpInside)
         
+        // Add sticker button
+        let addStickerButton = UIButton(type: .system)
+        addStickerButton.setTitle("Add Sticker", for: .normal)
+        addStickerButton.backgroundColor = .systemOrange
+        addStickerButton.setTitleColor(.white, for: .normal)
+        addStickerButton.layer.cornerRadius = 8
+        addStickerButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+        addStickerButton.addTarget(self, action: #selector(addStickerButtonTapped), for: .touchUpInside)
+        
         // Initialize professional TimeLineView
         timelineView = TimeLineView()
         timelineView.backgroundColor = .systemGray6
@@ -45,9 +54,11 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         timelineView.isHidden = true // Initially hidden until video is selected
         
         videoPickerButton.translatesAutoresizingMaskIntoConstraints = false
+        addStickerButton.translatesAutoresizingMaskIntoConstraints = false
         timelineView.translatesAutoresizingMaskIntoConstraints = false
         
         view.addSubview(videoPickerButton)
+        view.addSubview(addStickerButton)
         view.addSubview(timelineView)
         
         NSLayoutConstraint.activate([
@@ -56,10 +67,16 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
             videoPickerButton.widthAnchor.constraint(equalToConstant: 200),
             videoPickerButton.heightAnchor.constraint(equalToConstant: 50),
             
+            // Add sticker button below video picker button
+            addStickerButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            addStickerButton.topAnchor.constraint(equalTo: videoPickerButton.bottomAnchor, constant: 20),
+            addStickerButton.widthAnchor.constraint(equalToConstant: 150),
+            addStickerButton.heightAnchor.constraint(equalToConstant: 44),
+            
             timelineView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
             timelineView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             timelineView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            timelineView.heightAnchor.constraint(equalToConstant: 120) // Increased height for ruler
+            timelineView.heightAnchor.constraint(equalToConstant: 200) // Increased height for ruler
         ])
     }
     
@@ -72,6 +89,24 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         imagePicker.allowsEditing = false
         
         present(imagePicker, animated: true, completion: nil)
+    }
+    
+    @objc private func addStickerButtonTapped() {
+        print("Add Sticker button tapped")
+        
+        // Add sticker to timeline
+        timelineView.addSticker()
+        
+        // Show timeline if hidden
+        if timelineView.isHidden {
+            timelineView.isHidden = false
+        }
+    }
+    
+    private func showAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
     
     // MARK: - UIImagePickerControllerDelegate

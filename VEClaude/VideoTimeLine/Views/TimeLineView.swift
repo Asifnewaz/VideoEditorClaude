@@ -9,19 +9,22 @@
 import UIKit
 import AVFoundation
 
+// Associated object key for storing width constraint reference
+private var stickerWidthConstraintKey: UInt8 = 0
+
 class TimeLineView: UIView {
 
     private(set) var scrollView: UIScrollView!
     private(set) var contentView: UIView!
     fileprivate(set) var videoListContentView: UIView!
+    private(set) var stickerContentView: UIView!
     private(set) var centerLineView: UIView!
     private(set) var totalTimeLabel: UILabel!
     private(set) var rulerView: TimelineRulerView!
-    private(set) var stickerTimelineView: StickerTimelineView!
-    
     private(set) var scrollContentHeightConstraint: NSLayoutConstraint!
     
     private(set) var rangeViews: [VideoRangeView] = []
+    private(set) var stickerViews: [VideoRangeView] = [] // Sticker VideoRangeViews
     private(set) var trackItems: [AssetTrackItem] = []
     
     var rangeViewsIndex: Int {
@@ -81,6 +84,10 @@ class TimeLineView: UIView {
         scrollView.delegate = self
         scrollView.backgroundColor = .clear
         
+        // Hide scroll indicators
+        scrollView.showsHorizontalScrollIndicator = false
+        scrollView.showsVerticalScrollIndicator = false
+        
         contentView = UIView()
         contentView.backgroundColor = .clear
         scrollView.addSubview(contentView)
@@ -99,10 +106,10 @@ class TimeLineView: UIView {
         totalTimeLabel.textColor = UIColor.white
         totalTimeLabel.font = UIFont.systemFont(ofSize: 16)
         
-        // Initialize sticker timeline view
-        stickerTimelineView = StickerTimelineView()
-        stickerTimelineView.widthPerSecond = widthPerSecond
-        addSubview(stickerTimelineView)
+        // Initialize sticker content view
+        stickerContentView = UIView()
+        stickerContentView.backgroundColor = .clear
+        contentView.addSubview(stickerContentView)
         
         // Ruler view constraints (at the top of parent view)
         rulerView.translatesAutoresizingMaskIntoConstraints = false
@@ -111,38 +118,38 @@ class TimeLineView: UIView {
         rulerView.rightAnchor.constraint(equalTo: contentView.rightAnchor, constant: -videoRangeViewEarWidth).isActive = true
         rulerView.heightAnchor.constraint(equalToConstant: 20).isActive = true
         
-        // ScrollView constraints (below ruler, above sticker timeline)
+        // ScrollView constraints (below ruler)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.topAnchor.constraint(equalTo: rulerView.bottomAnchor).isActive = true
         scrollView.leftAnchor.constraint(equalTo: leftAnchor).isActive = true
         scrollView.rightAnchor.constraint(equalTo: rightAnchor).isActive = true
-        scrollView.bottomAnchor.constraint(equalTo: stickerTimelineView.topAnchor, constant: -15).isActive = true
+        scrollView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -60).isActive = true
         
         contentView.translatesAutoresizingMaskIntoConstraints = false
         contentView.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor).isActive = true
         contentView.leftAnchor.constraint(equalTo: scrollView.leftAnchor).isActive = true
         contentView.rightAnchor.constraint(equalTo: scrollView.rightAnchor).isActive = true
-        scrollContentHeightConstraint = contentView.heightAnchor.constraint(equalToConstant: 50) // Back to original height
+        scrollContentHeightConstraint = contentView.heightAnchor.constraint(equalToConstant: 115) // 50 for video + 15 spacing + 50 for sticker
         scrollContentHeightConstraint.isActive = true
         
-        // Video list content view constraints (fills content view)
+        // Video list content view constraints (top part of content view)
         videoListContentView.translatesAutoresizingMaskIntoConstraints = false
         videoListContentView.topAnchor.constraint(equalTo: contentView.topAnchor).isActive = true
         videoListContentView.leftAnchor.constraint(equalTo: contentView.leftAnchor).isActive = true
         videoListContentView.rightAnchor.constraint(equalTo: contentView.rightAnchor).isActive = true
-        videoListContentView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor).isActive = true
+        videoListContentView.heightAnchor.constraint(equalToConstant: 50).isActive = true
         
-        // Sticker timeline view constraints (at bottom with 50px height)
-        stickerTimelineView.translatesAutoresizingMaskIntoConstraints = false
-        stickerTimelineView.leftAnchor.constraint(equalTo: leftAnchor).isActive = true
-        stickerTimelineView.rightAnchor.constraint(equalTo: rightAnchor).isActive = true
-        stickerTimelineView.bottomAnchor.constraint(equalTo: bottomAnchor).isActive = true
-        stickerTimelineView.heightAnchor.constraint(equalToConstant: 50).isActive = true
+        // Sticker content view constraints (15px below video content)
+        stickerContentView.translatesAutoresizingMaskIntoConstraints = false
+        stickerContentView.topAnchor.constraint(equalTo: videoListContentView.bottomAnchor, constant: 15).isActive = true
+        stickerContentView.leftAnchor.constraint(equalTo: contentView.leftAnchor).isActive = true
+        stickerContentView.rightAnchor.constraint(equalTo: contentView.rightAnchor).isActive = true
+        stickerContentView.heightAnchor.constraint(equalToConstant: 50).isActive = true
         
         centerLineView.translatesAutoresizingMaskIntoConstraints = false
         centerLineView.centerXAnchor.constraint(equalTo: centerXAnchor).isActive = true
         centerLineView.topAnchor.constraint(equalTo: topAnchor).isActive = true
-        centerLineView.bottomAnchor.constraint(equalTo: stickerTimelineView.topAnchor, constant: -15).isActive = true
+        centerLineView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -60).isActive = true
         centerLineView.widthAnchor.constraint(equalToConstant: 1).isActive = true
         
         totalTimeLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -170,23 +177,48 @@ class TimeLineView: UIView {
             if let view = recognizer.view as? VideoRangeView, !view.isEditActive {
                 view.superview?.bringSubviewToFront(view)
                 view.isEditActive = true
-                rangeViews.filter({ $0 != view && $0.isEditActive }).forEach({ $0.isEditActive = false })
+                
+                // Check if this is a sticker or video view and deactivate the other type
+                if stickerViews.contains(view) {
+                    // This is a sticker - deactivate other stickers and all videos
+                    stickerViews.filter({ $0 != view && $0.isEditActive }).forEach({ $0.isEditActive = false })
+                    rangeViews.filter({ $0.isEditActive }).forEach({ $0.isEditActive = false })
+                } else {
+                    // This is a video - deactivate other videos and all stickers
+                    rangeViews.filter({ $0 != view && $0.isEditActive }).forEach({ $0.isEditActive = false })
+                    stickerViews.filter({ $0.isEditActive }).forEach({ $0.isEditActive = false })
+                }
             }
         }
     }
     
     @objc private func tapLineViewAction(_ recognizer: UITapGestureRecognizer) {
         let point = recognizer.location(in: recognizer.view)
-        var tapOnVideoRangeView = false
+        var tapOnRangeView = false
+        
+        // Check video range views
         for view in rangeViews {
             let rect = view.superview!.convert(view.frame, to: self)
             if rect.contains(point) {
-                tapOnVideoRangeView = true
+                tapOnRangeView = true
                 break
             }
         }
-        if !tapOnVideoRangeView {
+        
+        // Check sticker range views
+        if !tapOnRangeView {
+            for view in stickerViews {
+                let rect = view.superview!.convert(view.frame, to: self)
+                if rect.contains(point) {
+                    tapOnRangeView = true
+                    break
+                }
+            }
+        }
+        
+        if !tapOnRangeView {
             resignVideoRangeView()
+            resignStickerViews()
         }
     }
     
@@ -239,6 +271,9 @@ class TimeLineView: UIView {
         DispatchQueue.main.async { [weak self] in
             print("🟢 Delayed call to timeDidChanged after layout")
             self?.timeDidChanged()
+            
+            // Update sticker max durations after videos are loaded
+            self?.updateStickerMaxDurations()
         }
     }
     
@@ -311,6 +346,11 @@ class TimeLineView: UIView {
                 rightVideoRangeView.leftConstraint = leftConstraint
             }
         }
+        
+        // Update sticker max durations when a new video is added
+        DispatchQueue.main.async { [weak self] in
+            self?.updateStickerMaxDurations()
+        }
     }
     
     func removeAllRangeViews() {
@@ -318,18 +358,13 @@ class TimeLineView: UIView {
             view.removeFromSuperview()
         }
         rangeViews.removeAll()
+        
+        // Update sticker max durations when videos are removed
+        DispatchQueue.main.async { [weak self] in
+            self?.updateStickerMaxDurations()
+        }
     }
     
-    // MARK: - Sticker Timeline Access
-    
-    func getStickerTimelineView() -> StickerTimelineView {
-        return stickerTimelineView
-    }
-    
-    func addSticker(at startTime: CMTime, duration: CMTime) {
-        let stickerView = StickerRangeView()
-        stickerTimelineView.addStickerView(stickerView, at: startTime, duration: duration)
-    }
     
     
     fileprivate func timeDidChanged() {
@@ -389,12 +424,471 @@ class TimeLineView: UIView {
         // Update ruler with new duration
         print("🟡 About to call rulerView.updateDuration with: \(finalDuration)")
         rulerView.updateDuration(finalDuration)
-        
-        // Update sticker timeline duration
-        stickerTimelineView.updateDuration(finalDuration)
         print("🟡 TimeLineView.timeDidChanged completed")
     }
     
+    // MARK: - Sticker Management
+    
+    func addSticker() {
+        
+        // Create predefined sticker image
+        let stickerImage = createDefaultStickerImage()
+        
+        // Calculate current video timeline duration (trimmed)
+        let totalVideoDuration = calculateTotalVideoDuration()
+        let videoTimelineDuration = CGFloat(totalVideoDuration.seconds)
+        
+        // Use actual trimmed video duration or minimum 3 seconds as fallback
+        let duration = max(videoTimelineDuration, 3.0)
+        let stickerDuration = CMTime(seconds: duration, preferredTimescale: 600)
+        
+        print("🎯 Creating sticker with duration: \(duration)s (matches current trimmed video duration)")
+        
+        // Create sticker AssetTrackItem with predefined image and actual duration
+        let stickerTrackItem = AssetTrackItem(assetType: .sticker, predefinedImage: stickerImage, duration: stickerDuration)
+        
+        // Create VideoRangeView for sticker
+        let stickerRangeView = VideoRangeView()
+        
+        // Create custom content view for sticker
+        let stickerRangeContentView = createStickerContentView(for: stickerTrackItem)
+        stickerRangeView.loadContentView(stickerRangeContentView)
+        
+        // Configure sticker view properties (SAME AS VIDEO RANGE VIEWS)
+        stickerRangeView.contentView.widthPerSecond = widthPerSecond  // ⚠️ CRITICAL: This enables ear movement
+        stickerRangeView.contentInset = UIEdgeInsets(top: 2, left: videoRangeViewEarWidth, bottom: 2, right: videoRangeViewEarWidth)
+        stickerRangeView.delegate = self
+        stickerRangeView.isEditActive = false  // Match video range view initialization
+        
+        // Add tap gesture for selection (same as video range views)
+        let tapContentGesture = UITapGestureRecognizer(target: self, action: #selector(tapContentAction(_:)))
+        stickerRangeView.addGestureRecognizer(tapContentGesture)
+        
+        // Add to sticker views array
+        stickerViews.append(stickerRangeView)
+        stickerContentView.addSubview(stickerRangeView)
+        
+        // Position the sticker view
+        positionStickerView(stickerRangeView)
+        
+        // Trigger UI reload (same as video range views)
+        stickerRangeView.reloadUI()
+        
+        // Update scrollview content size to accommodate the new sticker
+        updateScrollViewContentSize()
+        
+        print("Added sticker with duration: \(stickerTrackItem.duration.seconds)s (video timeline: \(videoTimelineDuration)s)")
+    }
+    
+    func addText() {
+        // Create predefined text image
+        let textImage = createDefaultTextImage()
+        
+        // Calculate current video timeline duration (trimmed)
+        let totalVideoDuration = calculateTotalVideoDuration()
+        let videoTimelineDuration = CGFloat(totalVideoDuration.seconds)
+        
+        // Use actual trimmed video duration or minimum 3 seconds as fallback
+        let duration = max(videoTimelineDuration, 3.0)
+        let textDuration = CMTime(seconds: duration, preferredTimescale: 600)
+        
+        print("🎯 Creating text with duration: \(duration)s (matches current trimmed video duration)")
+        
+        // Create text AssetTrackItem with predefined image and actual duration
+        let textTrackItem = AssetTrackItem(assetType: .text, predefinedImage: textImage, duration: textDuration)
+        
+        // Create VideoRangeView for text
+        let textRangeView = VideoRangeView()
+        
+        // Create custom content view for text
+        let textRangeContentView = createStickerContentView(for: textTrackItem)
+        textRangeView.loadContentView(textRangeContentView)
+        
+        // Configure text view properties (SAME AS VIDEO RANGE VIEWS)
+        textRangeView.contentView.widthPerSecond = widthPerSecond  // ⚠️ CRITICAL: This enables ear movement
+        textRangeView.contentInset = UIEdgeInsets(top: 2, left: videoRangeViewEarWidth, bottom: 2, right: videoRangeViewEarWidth)
+        textRangeView.delegate = self
+        textRangeView.isEditActive = false  // Match video range view initialization
+        
+        // Add tap gesture for selection (same as video range views)
+        let tapContentGesture = UITapGestureRecognizer(target: self, action: #selector(tapContentAction(_:)))
+        textRangeView.addGestureRecognizer(tapContentGesture)
+        
+        // Add to sticker views array (we can reuse the same array for text)
+        stickerViews.append(textRangeView)
+        stickerContentView.addSubview(textRangeView)
+        
+        // Position the text view
+        positionStickerView(textRangeView)
+        
+        // Trigger UI reload (same as video range views)
+        textRangeView.reloadUI()
+        
+        // Update scrollview content size to accommodate the new text
+        updateScrollViewContentSize()
+        
+        print("Added text with duration: \(textTrackItem.duration.seconds)s (video timeline: \(videoTimelineDuration)s)")
+    }
+    
+    private func createStickerContentView(for trackItem: AssetTrackItem) -> RangeContentView {
+        // Use ImageRangeContentView for sticker/text types with predefined images
+        if (trackItem.assetType == .sticker || trackItem.assetType == .text), 
+           let predefinedImage = trackItem.predefinedImage {
+            let imageContentView = ImageRangeContentView()
+            imageContentView.startTime = trackItem.timeRange.start
+            imageContentView.endTime = trackItem.timeRange.end
+            imageContentView.widthPerSecond = widthPerSecond
+            imageContentView.supportUnlimitTime = false
+            
+            // Set max duration to total video duration
+            let totalVideoDuration = calculateTotalVideoDuration()
+            imageContentView.maxDuration = totalVideoDuration
+            
+            print("🚫 Set sticker max duration to: \(totalVideoDuration.seconds)s")
+            
+            // Configure with predefined image and asset type
+            imageContentView.configure(with: predefinedImage, assetType: trackItem.assetType)
+            
+            return imageContentView
+        }
+        
+        // Fallback to regular RangeContentView for other types
+        let contentView = RangeContentView()
+        contentView.startTime = trackItem.timeRange.start
+        contentView.endTime = trackItem.timeRange.end
+        contentView.widthPerSecond = widthPerSecond
+        contentView.supportUnlimitTime = false
+        
+        // Customize appearance based on asset type
+        switch trackItem.assetType {
+        case .sticker:
+            contentView.backgroundColor = .systemOrange.withAlphaComponent(0.8)
+            contentView.layer.borderColor = UIColor.systemOrange.cgColor
+        case .text:
+            contentView.backgroundColor = .systemBlue.withAlphaComponent(0.8)
+            contentView.layer.borderColor = UIColor.systemBlue.cgColor
+        default:
+            contentView.backgroundColor = .systemGray.withAlphaComponent(0.8)
+            contentView.layer.borderColor = UIColor.systemGray.cgColor
+        }
+        
+        contentView.layer.cornerRadius = 6
+        contentView.layer.borderWidth = 1
+        
+        return contentView
+    }
+    
+    private func positionStickerView(_ stickerView: VideoRangeView) {
+        stickerView.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Calculate sticker positioning based on content
+        let contentWidth = stickerView.contentView.contentWidth
+        let startTime = stickerView.contentView.startTime
+        let leftPosition = CGFloat(startTime.seconds) * widthPerSecond
+        
+        print("📍 Positioning sticker: startTime=\(startTime.seconds)s, leftPos=\(leftPosition), contentWidth=\(contentWidth)")
+        
+        // Create dynamic constraints similar to video range views
+        let leftConstraint = stickerView.leftAnchor.constraint(equalTo: stickerContentView.leftAnchor, constant: leftPosition)
+        let widthConstraint = stickerView.widthAnchor.constraint(equalToConstant: contentWidth + (videoRangeViewEarWidth * 2))
+        
+        // Store both constraints for dynamic updates
+        stickerView.leftConstraint = leftConstraint
+        objc_setAssociatedObject(stickerView, &stickerWidthConstraintKey, widthConstraint, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        
+        // Position and size the sticker view
+        NSLayoutConstraint.activate([
+            stickerView.topAnchor.constraint(equalTo: stickerContentView.topAnchor),
+            stickerView.bottomAnchor.constraint(equalTo: stickerContentView.bottomAnchor),
+            leftConstraint,
+            widthConstraint
+        ])
+        
+        print("✅ Positioned sticker with leftPos: \(leftPosition), width: \(contentWidth + (videoRangeViewEarWidth * 2))")
+    }
+    
+    func removeAllStickerViews() {
+        stickerViews.forEach { $0.removeFromSuperview() }
+        stickerViews.removeAll()
+    }
+    
+    func resignStickerViews() {
+        stickerViews.filter({ $0.isEditActive }).forEach({ $0.isEditActive = false })
+    }
+    
+    // MARK: - Video Duration Calculation
+    
+    private func calculateTotalVideoDuration() -> CMTime {
+        var totalDuration = CMTime.zero
+        
+        // PRIORITY 1: Use rangeViews for current trimmed duration (real-time)
+        for rangeView in rangeViews {
+            let viewDuration = rangeView.contentView.endTime - rangeView.contentView.startTime
+            totalDuration = totalDuration + viewDuration
+            print("🎥 Range view (trimmed) duration: \(viewDuration.seconds)s")
+        }
+        
+        // FALLBACK: Sum up trackItems original duration if no rangeViews
+        if totalDuration == CMTime.zero {
+            for trackItem in trackItems {
+                if trackItem.assetType == .video || trackItem.assetType == .audio {
+                    totalDuration = totalDuration + trackItem.duration
+                    print("🎥 Video track (original) duration: \(trackItem.duration.seconds)s")
+                }
+            }
+        }
+        
+        print("📏 Total video duration calculated: \(totalDuration.seconds)s (trimmed state)")
+        return totalDuration
+    }
+    
+    private func updateStickerMaxDurations() {
+        let totalVideoDuration = calculateTotalVideoDuration()
+        
+        // Update max duration for all existing stickers
+        for stickerView in stickerViews {
+            stickerView.contentView.maxDuration = totalVideoDuration
+            print("🔄 Updated sticker max duration to: \(totalVideoDuration.seconds)s")
+        }
+    }
+    
+    private func updateStickersAfterVideoTrimming() {
+        let totalVideoDuration = calculateTotalVideoDuration()
+        
+        print("🎬 Checking stickers against video trimming - video duration: \(totalVideoDuration.seconds)s")
+        
+        for stickerView in stickerViews {
+            let currentStickerDuration = stickerView.contentView.endTime - stickerView.contentView.startTime
+            let stickerEndTime = stickerView.contentView.endTime
+            let startTime = stickerView.contentView.startTime
+            
+            // Always update max duration (this sets the constraint for right ear dragging)
+            stickerView.contentView.maxDuration = totalVideoDuration
+            
+            // Check if sticker end position matches video end position (within small tolerance)
+            let tolerance = CMTime(seconds: 0.1, preferredTimescale: 600) // 0.1 second tolerance
+            let positionsMatch = abs(stickerEndTime.seconds - totalVideoDuration.seconds) <= tolerance.seconds
+            
+            print("🔍 Sticker analysis:")
+            print("   - Current duration: \(currentStickerDuration.seconds)s")
+            print("   - Sticker end time: \(stickerEndTime.seconds)s")
+            print("   - Video end time: \(totalVideoDuration.seconds)s")
+            print("   - Positions match: \(positionsMatch)")
+            
+            // Only update sticker if:
+            // 1. Sticker extends beyond video (must trim), OR
+            // 2. Sticker end position matches video end position (trim together)
+            if stickerEndTime > totalVideoDuration {
+                // Case 1: Sticker extends beyond video - must trim
+                let newEndTime = startTime + totalVideoDuration
+                stickerView.contentView.endTime = newEndTime
+                
+                print("✂️ Trimmed sticker (exceeded video): \(currentStickerDuration.seconds)s → \(totalVideoDuration.seconds)s")
+                
+                updateStickerConstraints(for: stickerView)
+            } else if positionsMatch {
+                // Case 2: Sticker end position matches video end - trim together
+                let newEndTime = startTime + totalVideoDuration
+                stickerView.contentView.endTime = newEndTime
+                
+                print("🔄 Updated sticker (positions matched): \(currentStickerDuration.seconds)s → \(totalVideoDuration.seconds)s")
+                
+                updateStickerConstraints(for: stickerView)
+            } else {
+                // Case 3: Sticker is shorter and positions don't match - keep unchanged
+                print("⏸️ Keeping sticker unchanged (different positions): \(currentStickerDuration.seconds)s")
+            }
+        }
+        
+        // Update scrollview content size after any sticker changes
+        updateScrollViewContentSize()
+    }
+    
+    // MARK: - ScrollView Content Size Management
+    
+    private func updateScrollViewContentSize() {
+        // Calculate maximum width needed for all content (videos + stickers)
+        var maxContentWidth: CGFloat = 0
+        
+        // Check video range views
+        for rangeView in rangeViews {
+            let viewRight = rangeView.frame.origin.x + rangeView.frame.size.width
+            maxContentWidth = max(maxContentWidth, viewRight)
+        }
+        
+        // Check sticker views
+        for stickerView in stickerViews {
+            let viewRight = stickerView.frame.origin.x + stickerView.frame.size.width
+            maxContentWidth = max(maxContentWidth, viewRight)
+        }
+        
+        // Add some padding
+        maxContentWidth += 100
+        
+        // Update content size for all content views
+        let newContentSize = CGSize(width: maxContentWidth, height: scrollView.contentSize.height)
+        
+        if scrollView.contentSize.width != newContentSize.width {
+            print("📏 Updating scrollview content size: \(scrollView.contentSize.width) -> \(newContentSize.width)")
+            scrollView.contentSize = newContentSize
+            
+            // Also update content view widths
+            videoListContentView.frame.size.width = newContentSize.width
+            stickerContentView.frame.size.width = newContentSize.width
+        }
+    }
+    
+    private func autoScrollIfNeeded(for view: VideoRangeView) {
+        // Only auto-scroll for stickers extending beyond visible area
+        guard stickerViews.contains(view) else { return }
+        
+        let viewRight = view.frame.origin.x + view.frame.size.width
+        let visibleRight = scrollView.contentOffset.x + scrollView.bounds.width - scrollView.contentInset.right
+        
+        // If sticker extends beyond visible area, scroll to show it
+        if viewRight > visibleRight {
+            let targetOffset = viewRight - scrollView.bounds.width + scrollView.contentInset.right + 20 // 20px padding
+            let maxOffset = scrollView.contentSize.width - scrollView.bounds.width + scrollView.contentInset.left
+            let finalOffset = min(targetOffset, maxOffset)
+            
+            print("📱 Auto-scrolling to show sticker: targetOffset=\(finalOffset)")
+            
+            UIView.animate(withDuration: 0.3) {
+                self.scrollView.setContentOffset(CGPoint(x: finalOffset, y: self.scrollView.contentOffset.y), animated: false)
+            }
+        }
+    }
+    
+    private func updateStickerConstraints(for stickerView: VideoRangeView) {
+        // Get the stored width constraint reference
+        guard let widthConstraint = objc_getAssociatedObject(stickerView, &stickerWidthConstraintKey) as? NSLayoutConstraint,
+              let leftConstraint = stickerView.leftConstraint else {
+            print("❌ Error: Could not find stored constraints for sticker")
+            // Try recreating the constraint if it's missing
+            recreateStickerConstraints(for: stickerView)
+            return
+        }
+        
+        // Calculate new position and width based on content view
+        let contentWidth = stickerView.contentView.contentWidth
+        let startTime = stickerView.contentView.startTime
+        let newLeftPosition = CGFloat(startTime.seconds) * widthPerSecond
+        let newTotalWidth = contentWidth + (videoRangeViewEarWidth * 2)
+        
+        print("🔄 Updating sticker constraints:")
+        print("  - Left: \(leftConstraint.constant) -> \(newLeftPosition)")
+        print("  - Width: \(widthConstraint.constant) -> \(newTotalWidth)")
+        print("  - Content: startTime=\(startTime.seconds)s, width=\(contentWidth)")
+        
+        // Update both constraints
+        leftConstraint.constant = newLeftPosition
+        widthConstraint.constant = newTotalWidth
+        
+        // Force immediate layout update with animation disabled
+        UIView.performWithoutAnimation {
+            stickerContentView.layoutIfNeeded()
+            stickerView.layoutIfNeeded()
+            
+            // Ensure frame is updated before scrollview calculations
+            stickerView.superview?.layoutIfNeeded()
+        }
+        
+        print("✅ Sticker constraints updated successfully")
+    }
+    
+    private func recreateStickerConstraints(for stickerView: VideoRangeView) {
+        print("🔧 Recreating constraints for sticker view")
+        
+        // Clear existing constraint references
+        stickerView.leftConstraint = nil
+        objc_setAssociatedObject(stickerView, &stickerWidthConstraintKey, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        
+        // Remove existing constraints by removing and re-adding the view
+        stickerView.removeFromSuperview()
+        stickerContentView.addSubview(stickerView)
+        
+        // Reposition with fresh constraints
+        positionStickerView(stickerView)
+    }
+    
+    // MARK: - Predefined Image Creation
+    
+    private func createDefaultStickerImage() -> UIImage {
+        // Try to use system image first
+        if let starImage = UIImage(systemName: "star.fill") {
+            return starImage.withTintColor(.white, renderingMode: .alwaysOriginal)
+        }
+        
+        // Fallback: create a simple programmatic image
+        return createProgrammaticStickerImage()
+    }
+    
+    private func createDefaultTextImage() -> UIImage {
+        // Try to use system image first
+        if let textImage = UIImage(systemName: "textformat") {
+            return textImage.withTintColor(.white, renderingMode: .alwaysOriginal)
+        }
+        
+        // Fallback: create a simple programmatic image
+        return createProgrammaticTextImage()
+    }
+    
+    private func createProgrammaticStickerImage() -> UIImage {
+        let size = CGSize(width: 40, height: 40)
+        
+        UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
+        let context = UIGraphicsGetCurrentContext()!
+        
+        // Draw a star shape
+        context.setFillColor(UIColor.white.cgColor)
+        
+        // Simple star path
+        let starPath = UIBezierPath()
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let radius: CGFloat = 15
+        
+        for i in 0..<10 {
+            let angle = CGFloat(i) * .pi / 5
+            let pointRadius = i % 2 == 0 ? radius : radius * 0.5
+            let x = center.x + pointRadius * cos(angle - .pi / 2)
+            let y = center.y + pointRadius * sin(angle - .pi / 2)
+            
+            if i == 0 {
+                starPath.move(to: CGPoint(x: x, y: y))
+            } else {
+                starPath.addLine(to: CGPoint(x: x, y: y))
+            }
+        }
+        starPath.close()
+        starPath.fill()
+        
+        let image = UIGraphicsGetImageFromCurrentImageContext()!
+        UIGraphicsEndImageContext()
+        
+        return image
+    }
+    
+    private func createProgrammaticTextImage() -> UIImage {
+        let size = CGSize(width: 40, height: 40)
+        
+        UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
+        let context = UIGraphicsGetCurrentContext()!
+        
+        // Draw text representation
+        context.setFillColor(UIColor.white.cgColor)
+        
+        // Draw simple "T" shape
+        let rect1 = CGRect(x: 10, y: 8, width: 20, height: 4) // Top bar
+        let rect2 = CGRect(x: 18, y: 8, width: 4, height: 24) // Vertical bar
+        
+        context.fill(rect1)
+        context.fill(rect2)
+        
+        let image = UIGraphicsGetImageFromCurrentImageContext()!
+        UIGraphicsEndImageContext()
+        
+        return image
+    }
     
 }
 
@@ -536,29 +1030,66 @@ extension TimeLineView: VideoRangeViewDelegate {
     }
     
     func videoRangeViewBeginUpdateLeft(_ view: VideoRangeView) {
+        // Check if this is a sticker or video view
+        if stickerViews.contains(view) {
+            // Handle sticker independently
+            view.isEditActive = true
+            stickerViews.filter({ $0 != view && $0.isEditActive }).forEach({ $0.isEditActive = false })
+            // Deactivate video views
+            rangeViews.filter({ $0.isEditActive }).forEach({ $0.isEditActive = false })
+            return
+        }
+        
+        // Original video range view behavior
         scrollView.delegate = nil
-        // Set this view as actively being edited
         view.isEditActive = true
         rangeViews.filter({ $0 != view && $0.isEditActive }).forEach({ $0.isEditActive = false })
+        // Deactivate sticker views
+        stickerViews.filter({ $0.isEditActive }).forEach({ $0.isEditActive = false })
         replacePlayerItemToCurrentClipItem(view: view)
     }
     
     func videoRangeViewBeginUpdateRight(_ view: VideoRangeView) {
+        // Check if this is a sticker or video view
+        if stickerViews.contains(view) {
+            // Handle sticker independently
+            view.isEditActive = true
+            stickerViews.filter({ $0 != view && $0.isEditActive }).forEach({ $0.isEditActive = false })
+            // Deactivate video views
+            rangeViews.filter({ $0.isEditActive }).forEach({ $0.isEditActive = false })
+            return
+        }
+        
+        // Original video range view behavior
         scrollView.delegate = nil
-        // Set this view as actively being edited
         view.isEditActive = true
         rangeViews.filter({ $0 != view && $0.isEditActive }).forEach({ $0.isEditActive = false })
+        // Deactivate sticker views
+        stickerViews.filter({ $0.isEditActive }).forEach({ $0.isEditActive = false })
 //        delegate?.clipTimelineBeginClip(self)
 //        VideoEditManager.shared.beginClipVideo()
         replacePlayerItemToCurrentClipItem(view: view)
     }
     
     func videoRangeView(_ view: VideoRangeView, updateLeftOffset offset: CGFloat, auto: Bool) {
+        // Check if this is a sticker view
+        if stickerViews.contains(view) {
+            // For stickers, update the width constraint to reflect new content size
+            let contentWidth = view.contentView.contentWidth
+            print("🔄 Sticker left ear dragged - content width: \(contentWidth), offset: \(offset)")
+            updateStickerConstraints(for: view)
+            return
+        }
+        
+        // Original video range view behavior
         updateCurrentClipPlayerItem(time: view.contentView.startTime, view: view)
         
         // Update ruler when ear moves
         print("🟣 Left ear moved, updating ruler")
         timeDidChanged()
+        
+        // Real-time sticker updates during video trimming
+        updateStickersAfterVideoTrimming()
         
         if auto {
             return
@@ -574,7 +1105,18 @@ extension TimeLineView: VideoRangeViewDelegate {
     }
     
     func videoRangeViewDidEndUpdateLeftOffset(_ view: VideoRangeView) {
-        // Clear edit active state when dragging ends
+        // Check if this is a sticker view
+        if stickerViews.contains(view) {
+            // For stickers, end edit state and ensure final width is correct
+            let contentWidth = view.contentView.contentWidth
+            print("⚙️ Sticker left ear drag ended - final content width: \(contentWidth)")
+            view.isEditActive = false
+            view.contentView.endExpand()
+            updateStickerConstraints(for: view)
+            return
+        }
+        
+        // Original video range view behavior
         view.isEditActive = false
         restoreTimePlayerItem(view: view)
         scrollView.delegate = self
@@ -601,6 +1143,20 @@ extension TimeLineView: VideoRangeViewDelegate {
     }
     
     func videoRangeView(_ view: VideoRangeView, updateRightOffset offset: CGFloat, auto: Bool) {
+        // Check if this is a sticker view
+        if stickerViews.contains(view) {
+            // For stickers, update the width constraint to reflect new content size
+            let contentWidth = view.contentView.contentWidth
+            print("🔄 Sticker right ear dragged - content width: \(contentWidth), offset: \(offset)")
+            updateStickerConstraints(for: view)
+            
+            // Update scrollview content size and auto-scroll if needed
+            updateScrollViewContentSize()
+            autoScrollIfNeeded(for: view)
+            return
+        }
+        
+        // Original video range view behavior
         updateCurrentClipPlayerItem(time: view.contentView.endTime, view: view)
         let center = view.convert(view.rightEar.center, to: self)
         centerLineView.center = CGPoint(x: center.x - view.rightEar.frame.size.width * 0.5, y: center.y)
@@ -608,6 +1164,9 @@ extension TimeLineView: VideoRangeViewDelegate {
         // Update ruler when ear moves
         print("🟣 Right ear moved, updating ruler")
         timeDidChanged()
+        
+        // Real-time sticker updates during video trimming
+        updateStickersAfterVideoTrimming()
         
         if auto {
             var contentOffset = scrollView.contentOffset
@@ -621,7 +1180,21 @@ extension TimeLineView: VideoRangeViewDelegate {
     }
     
     func videoRangeViewDidEndUpdateRightOffset(_ view: VideoRangeView) {
-        // Clear edit active state when dragging ends
+        // Check if this is a sticker view
+        if stickerViews.contains(view) {
+            // For stickers, end edit state and ensure final width is correct
+            let contentWidth = view.contentView.contentWidth
+            print("⚙️ Sticker right ear drag ended - final content width: \(contentWidth)")
+            view.isEditActive = false
+            view.contentView.endExpand()
+            updateStickerConstraints(for: view)
+            
+            // Final scrollview content size update
+            updateScrollViewContentSize()
+            return
+        }
+        
+        // Original video range view behavior
         view.isEditActive = false
         restoreTimePlayerItem(view: view)
         scrollView.delegate = self
@@ -647,6 +1220,9 @@ extension TimeLineView: VideoRangeViewDelegate {
                 #warning("Update timeline data")
             }
         }
+        
+        // Update stickers after video trimming
+        updateStickersAfterVideoTrimming()
     }
 }
 
@@ -716,7 +1292,7 @@ extension TimeLineView: UIScrollViewDelegate {
         for clip in trackItems {
             let endTime = clip.timeRange.end
             if abs((time - endTime).seconds) < 0.1 {
-                if clip.resource.duration.seconds <= 0.1 {
+                if (clip.resource?.duration.seconds ?? 0) <= 0.1 {
                     break
                 }
                 if time > endTime {
